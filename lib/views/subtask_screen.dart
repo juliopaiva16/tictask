@@ -8,6 +8,8 @@ import '../models/time_point.dart';
 import '../models/tag.dart';
 import '../viewmodels/tag_viewmodel.dart';
 import '../utils/csv_exporter.dart';
+import '../viewmodels/subtask_viewmodel.dart';
+import '../widgets/time_point_edit_modal.dart';
 import 'subtask_form.dart';
 import 'tag_management_screen.dart';
 /// Screen for managing subtasks of a specific task.
@@ -149,6 +151,61 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
     );
   }
 
+  /// Edits an existing timepoint
+  void _editTimePoint(Subtask subtask, TimePoint timePoint) async {
+    final index = subtask.timePoints.indexOf(timePoint);
+    DateTime? minDate;
+    DateTime? maxDate;
+    
+    // Determine valid date limits for editing
+    if (index > 0) {
+      minDate = subtask.timePoints[index - 1].timestamp;
+    }
+    
+    if (index < subtask.timePoints.length - 1) {
+      maxDate = subtask.timePoints[index + 1].timestamp;
+    }
+    
+    final result = await showDialog<DateTime>(
+      context: context,
+      builder: (context) => TimePointEditModal(
+        timePoint: timePoint,
+        onSave: (newDateTime) {
+          // Check if the new date is within limits
+          if ((minDate == null || newDateTime.isAfter(minDate)) && 
+              (maxDate == null || newDateTime.isBefore(maxDate))) {
+            return Navigator.of(context).pop(newDateTime);
+          } else {
+            // Show error message if the date is not valid
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'The selected date and time do not respect the chronological order of events.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return null;
+          }
+        },
+      ),
+    );
+    
+    if (result != null) {
+      final box = Hive.box<Task>('tasks');
+      final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
+      final subtaskInTask = task.subtasks.firstWhere((s) => s.id == subtask.id);
+      
+      // Create a view model to handle the subtask
+      final viewModel = SubtaskViewModel(subtask: subtaskInTask);
+      viewModel.updateTimePoint(timePoint, result);
+      
+      await task.save();
+      await _loadSubtasks();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,13 +297,20 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
-                              onPressed: null,
+                              onPressed: () => _editTimePoint(subtask, tp),
                               icon: Icon(tp.isStart ? Icons.play_arrow : Icons.pause, size: 16),
-                              label: Text(
-                                '${tp.timestamp.year.toString().padLeft(4, '0')}-'
-                                '${tp.timestamp.month.toString().padLeft(2, '0')}-'
-                                '${tp.timestamp.day.toString().padLeft(2, '0')} '
-                                '${tp.timestamp.hour.toString().padLeft(2, '0')}:''${tp.timestamp.minute.toString().padLeft(2, '0')}:''${tp.timestamp.second.toString().padLeft(2, '0')}',
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${tp.timestamp.year.toString().padLeft(4, '0')}-'
+                                    '${tp.timestamp.month.toString().padLeft(2, '0')}-'
+                                    '${tp.timestamp.day.toString().padLeft(2, '0')} '
+                                    '${tp.timestamp.hour.toString().padLeft(2, '0')}:''${tp.timestamp.minute.toString().padLeft(2, '0')}:''${tp.timestamp.second.toString().padLeft(2, '0')}',
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.edit, size: 12),
+                                ],
                               ),
                             ),
                         ],
