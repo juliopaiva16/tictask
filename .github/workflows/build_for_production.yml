@@ -5,57 +5,11 @@ on:
     branches: [ main ]
 
 jobs:
-  # Check if main can be merged into development without conflicts
-  check-merge-conflicts:
-    runs-on: ubuntu-latest
-    
-    steps:
-      # Step 1: Checkout the repository code with all branches
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      # Step 2: Fetch all branches
-      - name: Fetch all branches
-        run: |
-          git fetch origin
-      
-      # Step 3: Check if development branch exists
-      - name: Check if development branch exists
-        id: check_dev_branch
-        run: |
-          if git show-ref --verify --quiet refs/remotes/origin/development; then
-            echo "Development branch exists, proceeding with conflict check"
-            echo "branch_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "Development branch does not exist, skipping conflict check"
-            echo "branch_exists=false" >> $GITHUB_OUTPUT
-          fi
-      
-      # Step 4: Check for merge conflicts
-      - name: Check for merge conflicts
-        if: steps.check_dev_branch.outputs.branch_exists == 'true'
-        run: |
-          # Try to merge main into development without committing
-          git checkout origin/development -b temp-development
-          if git merge --no-commit --no-ff origin/main; then
-            echo "Main can be merged into development without conflicts"
-            # Abort the merge since we're just checking
-            git merge --abort
-          else
-            echo "Merging main into development would cause conflicts"
-            # Abort the merge
-            git merge --abort
-            exit 1
-          fi
-
-  # Check if version tag already exists
-  check-version:
-    needs: check-merge-conflicts
+  # Get version from pubspec.yaml
+  get-version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.version }}
+      version: ${{ steps.get_version.outputs.VERSION }}
     
     steps:
       # Step 1: Checkout the repository code
@@ -67,23 +21,11 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
-      
-      # Step 3: Check if tag already exists for this version
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          git fetch --tags
-          if git tag | grep -q "v${{ steps.get_version.outputs.version }}"; then
-            echo "Tag v${{ steps.get_version.outputs.version }} already exists. Please update the version in pubspec.yaml."
-            exit 1
-          else
-            echo "Tag does not exist yet. Proceeding with build."
-          fi
 
   build-windows:
-    needs: [check-merge-conflicts, check-version]
+    needs: get-version
     runs-on: windows-latest
     
     steps:
@@ -129,7 +71,7 @@ jobs:
           retention-days: 7 # Number of days to keep the artifacts
 
   build-macos:
-    needs: [check-merge-conflicts, check-version]
+    needs: get-version
     runs-on: macos-latest
     
     steps:
@@ -184,7 +126,7 @@ jobs:
           compression-level: 0 # No compression to preserve file structure
 
   build-linux:
-    needs: [check-merge-conflicts, check-version]
+    needs: get-version
     runs-on: ubuntu-latest
     
     steps:
@@ -239,7 +181,7 @@ jobs:
   create-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    # Use the version from check-version job
+    # Use the version from get-version job
     if: success()
     
     steps:
@@ -249,13 +191,12 @@ jobs:
         with:
           fetch-depth: 0 # Fetch all history for proper tagging
 
-      # Step 2: Get version from check-version job
-      - name: Get Version
+      # Step 2: Get version from get-version job output
+      - name: Set Version Variable
         id: get_version
         run: |
-          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Found version: $VERSION"
+          echo "VERSION=${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "Using version: ${{ needs.get-version.outputs.version }}"
       
       # Step 3: Download all artifacts
       - name: Download Windows Build
@@ -357,8 +298,8 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Get version for commit message
-          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+          # Use version from get-version job
+          VERSION="${{ needs.get-version.outputs.version }}"
           
           # Checkout development branch
           git checkout development
