@@ -20,13 +20,13 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: '11' # Flutter requires Java 11 or newer
+          java-version: '21' # Flutter requires Java 11 or newer
       
       # Step 3: Setup Flutter environment
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.32.0'
           channel: 'stable'
           cache: true
       
