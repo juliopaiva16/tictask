@@ -5,8 +5,11 @@ import 'package:file_selector/file_selector.dart';
 import '../models/task.dart';
 import '../models/subtask.dart';
 import '../models/time_point.dart';
+import '../models/tag.dart';
+import '../viewmodels/tag_viewmodel.dart';
 import '../utils/csv_exporter.dart';
 import 'subtask_form.dart';
+import 'tag_management_screen.dart';
 /// Screen for managing subtasks of a specific task.
 class SubtaskScreen extends StatefulWidget {
   /// The task whose subtasks are being managed.
@@ -23,6 +26,8 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   Timer? _timer;
   String _searchQuery = '';
   List<Subtask> _subtasks = [];
+  List<Tag> _availableTags = [];
+  final TagViewModel _tagViewModel = TagViewModel();
 
   /// Returns the filtered list of subtasks based on the search query.
   List<Subtask> get _filteredSubtasks {
@@ -37,10 +42,15 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSubtasks();
+    _loadData();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+  }
+  
+  Future<void> _loadData() async {
+    await _loadSubtasks();
+    await _loadTags();
   }
 
   /// Loads the subtasks for the current task from Hive.
@@ -49,6 +59,14 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
     final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
     setState(() {
       _subtasks = List<Subtask>.from(task.subtasks);
+    });
+  }
+  
+  /// Loads all available tags from Hive
+  Future<void> _loadTags() async {
+    await _tagViewModel.loadTags();
+    setState(() {
+      _availableTags = _tagViewModel.tags;
     });
   }
 
@@ -97,7 +115,14 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
           title: Text(subtask == null ? 'Create Subtask' : 'Edit Subtask'),
           content: SubtaskForm(
             initialSubtask: subtask,
-            onSubmit: (name, description) async {
+            availableTags: _availableTags,
+            onAddNewTag: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TagManagementScreen()),
+              ).then((_) => _loadTags());
+            },
+            onSubmit: (name, description, tags) async {
               final box = Hive.box<Task>('tasks');
               final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
               if (subtask == null) {
@@ -105,11 +130,13 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   title: name,
                   notes: description,
+                  tagIds: tags.map((tag) => tag.id).toList(),
                 );
                 task.subtasks = List.from(task.subtasks)..add(newSubtask);
               } else {
                 subtask.title = name;
                 subtask.notes = description;
+                subtask.tagIds = tags.map((tag) => tag.id).toList();
               }
               await task.save();
               await _loadSubtasks();

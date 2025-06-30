@@ -4,16 +4,16 @@ import 'package:hive/hive.dart';
 import '../models/task.dart';
 import '../models/tag.dart';
 import '../utils/csv_exporter.dart';
+import '../viewmodels/tag_viewmodel.dart';
 import '../views/subtask_screen.dart';
 import '../widgets/tictask_branding.dart';
+import 'tag_management_screen.dart';
 import 'task_form.dart';
 import 'tag_selector.dart';
 
 /// Main screen for listing and creating tasks.
 class TaskListScreen extends StatefulWidget {
-  final List<Tag> availableTags;
-
-  const TaskListScreen({super.key, required this.availableTags});
+  const TaskListScreen({super.key});
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
@@ -21,22 +21,36 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
   List<Task> _tasks = [];
+  List<Tag> _availableTags = [];
   String _searchQuery = '';
   final List<Tag> _filterTags = [];
+  final TagViewModel _tagViewModel = TagViewModel();
 
   @override
   void initState() {
     super.initState();
-    _loadTasks();
+    _loadData();
   }
 
   /// Loads all tasks from the Hive box and updates the state.
+  Future<void> _loadData() async {
+    await _loadTasks();
+    await _loadTags();
+  }
+  
   Future<void> _loadTasks() async {
     final box = Hive.box<Task>('tasks');
     setState(() {
       _tasks = box.values.map((task) {
         return task;
       }).toList();
+    });
+  }
+  
+  Future<void> _loadTags() async {
+    await _tagViewModel.loadTags();
+    setState(() {
+      _availableTags = _tagViewModel.tags;
     });
   }
 
@@ -69,7 +83,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         return AlertDialog(
           title: const Text('Edit Task'),
           content: TaskForm(
-            availableTags: widget.availableTags,
+            availableTags: _availableTags,
             initialTask: task,
             onSubmit: (name, tags, {description}) async {
               task.title = name;
@@ -99,7 +113,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         return AlertDialog(
           title: const Text('Create Task'),
           content: TaskForm(
-            availableTags: widget.availableTags,
+            availableTags: _availableTags,
             onSubmit: (name, tags, {description}) async {
               if (name.isNotEmpty) {
                 final task = Task(
@@ -181,7 +195,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
             const SizedBox(height: 8),
             TagSelector(
-              availableTags: widget.availableTags,
+              availableTags: _availableTags,
               selectedTags: _filterTags,
               onTagToggle: (tag) {
                 setState(() {
@@ -193,6 +207,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 });
               },
               readOnly: false,
+              onAddNewTag: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TagManagementScreen()),
+                ).then((_) => _loadTags());
+              },
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -201,7 +221,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 itemBuilder: (context, index) {
                   final task = _filteredTasks[index];
                   final displayTags = task.tagIds
-                      .map((id) => widget.availableTags.firstWhere(
+                      .map((id) => _availableTags.firstWhere(
                             (t) => t.id == id,
                             orElse: () => Tag(
                               id: id,
@@ -241,7 +261,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         children: [
                           if (displayTags.isNotEmpty)
                             TagSelector(
-                              availableTags: widget.availableTags,
+                              availableTags: _availableTags,
                               selectedTags: displayTags,
                               readOnly: true,
                             ),

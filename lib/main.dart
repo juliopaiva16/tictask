@@ -6,6 +6,7 @@ import 'models/task.dart';
 import 'models/tag.dart';
 import 'models/time_point.dart';
 import 'models/subtask.dart';
+import 'utils/hive_utils.dart';
 import 'views/task_list_screen.dart';
 import 'views/splash_screen.dart';
 
@@ -102,8 +103,37 @@ void main() async {
     ..registerAdapter(TimePointAdapter())
     ..registerAdapter(SubtaskAdapter())
     ..registerAdapter(TaskAdapter());
-  await Hive.openBox<Task>('tasks');
-  await Hive.openBox<Tag>('tags');
+  
+  try {
+    await Hive.openBox<Task>('tasks');
+    await Hive.openBox<Tag>('tags');
+  } catch (e) {
+    print('Error opening Hive boxes: $e');
+    print('Clearing database and retrying...');
+    
+    // Try to close any open boxes first
+    await Hive.close();
+    
+    // Delete the Hive database
+    await HiveUtils.deleteHiveFolder();
+    
+    // Reinitialize Hive
+    Hive
+      ..init(
+        Platform.isMacOS || Platform.isLinux || Platform.isWindows
+          ? './hive'
+          : 'hive'
+      )
+      ..registerAdapter(TagAdapter())
+      ..registerAdapter(TimePointAdapter())
+      ..registerAdapter(SubtaskAdapter())
+      ..registerAdapter(TaskAdapter());
+      
+    // Try opening the boxes again
+    await Hive.openBox<Task>('tasks');
+    await Hive.openBox<Tag>('tags');
+  }
+  
   runApp(const MyApp());
 }
 
@@ -130,6 +160,28 @@ class AppWrapper extends StatefulWidget {
 
 class _AppWrapperState extends State<AppWrapper> {
   bool _isInitialized = false;
+  final List<Tag> _initialTags = [
+    Tag(id: '1', name: 'Development', iconCodePoint: Icons.code.codePoint, colorValue: Colors.blue.value),
+    Tag(id: '2', name: 'Meeting', iconCodePoint: Icons.people.codePoint, colorValue: Colors.green.value),
+    Tag(id: '3', name: 'Research', iconCodePoint: Icons.search.codePoint, colorValue: Colors.orange.value),
+    Tag(id: '4', name: 'Testing', iconCodePoint: Icons.bug_report.codePoint, colorValue: Colors.red.value),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Initialize tags if they don't exist
+    final tagBox = Hive.box<Tag>('tags');
+    if (tagBox.isEmpty) {
+      for (final tag in _initialTags) {
+        await tagBox.add(tag);
+      }
+    }
+  }
 
   void _onInitializationComplete() {
     setState(() {
@@ -145,13 +197,6 @@ class _AppWrapperState extends State<AppWrapper> {
       );
     }
 
-    return TaskListScreen(
-      availableTags: [
-        Tag(id: '1', name: 'Development', iconCodePoint: Icons.code.codePoint, colorValue: Colors.blue.toARGB32()),
-        Tag(id: '2', name: 'Meeting', iconCodePoint: Icons.people.codePoint, colorValue: Colors.green.toARGB32()),
-        Tag(id: '3', name: 'Research', iconCodePoint: Icons.search.codePoint, colorValue: Colors.orange.toARGB32()),
-        Tag(id: '4', name: 'Testing', iconCodePoint: Icons.bug_report.codePoint, colorValue: Colors.red.toARGB32()),
-      ],
-    );
+    return TaskListScreen();
   }
 }

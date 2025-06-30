@@ -21,6 +21,10 @@ class Subtask extends HiveObject {
   /// Optional notes or description for the subtask.
   @HiveField(3)
   String? notes;
+  
+  /// List of tag IDs associated with this subtask.
+  @HiveField(4)
+  List<String> tagIds;
 
   /// Creates a [Subtask] instance.
   Subtask({
@@ -28,6 +32,7 @@ class Subtask extends HiveObject {
     required this.title,
     this.timePoints = const [],
     this.notes,
+    this.tagIds = const [],
   });
 
   /// Calculates the total invested time in this subtask in seconds.

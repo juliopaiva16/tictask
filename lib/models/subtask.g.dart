@@ -21,13 +21,14 @@ class SubtaskAdapter extends TypeAdapter<Subtask> {
       title: fields[1] as String,
       timePoints: (fields[2] as List).cast<TimePoint>(),
       notes: fields[3] as String?,
+      tagIds: fields[4] != null ? (fields[4] as List).cast<String>() : [],
     );
   }
 
   @override
   void write(BinaryWriter writer, Subtask obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class SubtaskAdapter extends TypeAdapter<Subtask> {
       ..writeByte(2)
       ..write(obj.timePoints)
       ..writeByte(3)
-      ..write(obj.notes);
+      ..write(obj.notes)
+      ..writeByte(4)
+      ..write(obj.tagIds);
   }
 
   @override
