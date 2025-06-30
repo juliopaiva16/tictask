@@ -39,6 +39,10 @@ jobs:
       - name: Check for merge conflicts
         if: steps.check_dev_branch.outputs.branch_exists == 'true'
         run: |
+          # Configure Git identity
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
           # Try to merge main into development without committing
           git checkout origin/development -b temp-development
           if git merge --no-commit --no-ff origin/main; then
@@ -47,8 +51,8 @@ jobs:
             git merge --abort
           else
             echo "Merging main into development would cause conflicts"
-            # Abort the merge
-            git merge --abort
+            # Abort the merge if possible
+            git merge --abort || true
             exit 1
           fi
 
