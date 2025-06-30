@@ -9,7 +9,7 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.VERSION }}
+      version: ${{ steps.get_version.outputs.version }}
     
     steps:
       # Step 1: Checkout the repository code
@@ -21,7 +21,7 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
 
   build-windows:
@@ -183,6 +183,8 @@ jobs:
     runs-on: ubuntu-latest
     # Use the version from get-version job
     if: success()
+    permissions:
+      contents: write
     
     steps:
       # Step 1: Checkout the code
@@ -195,8 +197,15 @@ jobs:
       - name: Set Version Variable
         id: get_version
         run: |
-          echo "VERSION=${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "Using version: ${{ needs.get-version.outputs.version }}"
+          VERSION="${{ needs.get-version.outputs.version }}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+          
+          # Fail fast if version is empty
+          if [ -z "$VERSION" ]; then
+            echo "Error: Version is empty! Cannot create release with empty version."
+            exit 1
+          fi
       
       # Step 3: Download all artifacts
       - name: Download Windows Build
@@ -254,7 +263,7 @@ jobs:
             - [macOS](TicTask-macOS-${{ steps.get_version.outputs.VERSION }}.zip)
             - [Linux](TicTask-Linux-${{ steps.get_version.outputs.VERSION }}.zip)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
   # Job to merge main into development after successful release
   merge-to-development:
