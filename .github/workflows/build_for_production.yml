@@ -3,6 +3,8 @@ name: Build and Release Flutter for Windows, macOS and Linux
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build-windows:
@@ -154,3 +156,78 @@ jobs:
           name: build-linux
           path: build/linux/x64/release/bundle
           retention-days: 7 # Number of days to keep the artifacts
+
+  # Job to create a GitHub Release with all build artifacts
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    # Only run on tag pushes
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Get the version from the tag
+      - name: Get Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      # Step 3: Download all artifacts
+      - name: Download Windows Build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-windows
+          path: windows-build
+
+      - name: Download macOS Build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-macos
+          path: macos-build
+      
+      - name: Download Linux Build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux
+          path: linux-build
+      
+      # Step 4: Create ZIP files for Windows and Linux
+      - name: Create Windows Zip
+        run: |
+          cd windows-build
+          zip -r ../TicTask-Windows-${{ steps.get_version.outputs.VERSION }}.zip .
+      
+      - name: Create Linux Zip
+        run: |
+          cd linux-build
+          zip -r ../TicTask-Linux-${{ steps.get_version.outputs.VERSION }}.zip .
+          
+      # Step 5: Rename macOS zip with version
+      - name: Rename macOS Zip
+        run: |
+          mv macos-build/TicTask-macOS.zip TicTask-macOS-${{ steps.get_version.outputs.VERSION }}.zip
+      
+      # Step 6: Create the release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: TicTask v${{ steps.get_version.outputs.VERSION }}
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            TicTask-Windows-${{ steps.get_version.outputs.VERSION }}.zip
+            TicTask-macOS-${{ steps.get_version.outputs.VERSION }}.zip
+            TicTask-Linux-${{ steps.get_version.outputs.VERSION }}.zip
+          body: |
+            # TicTask v${{ steps.get_version.outputs.VERSION }}
+            
+            ## Downloads
+            
+            - [Windows](TicTask-Windows-${{ steps.get_version.outputs.VERSION }}.zip)
+            - [macOS](TicTask-macOS-${{ steps.get_version.outputs.VERSION }}.zip)
+            - [Linux](TicTask-Linux-${{ steps.get_version.outputs.VERSION }}.zip)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
