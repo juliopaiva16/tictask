@@ -4,8 +4,8 @@ import '../models/task.dart';
 import '../models/subtask.dart';
 
 class CsvExporter {
-  /// Exports all tasks to a CSV file
-  static Future<String> exportTasksToCsv(List<Task> tasks, String filePath) async {
+  /// Generates CSV content for tasks
+  static String generateTasksCsv(List<Task> tasks) {
     final List<List<dynamic>> rows = [
       [
         'ID',
@@ -54,14 +54,11 @@ class CsvExporter {
         ];
       })
     ];
-    String csv = const ListToCsvConverter().convert(rows);
-    final file = File(filePath);
-    await file.writeAsString(csv);
-    return file.path;
+    return const ListToCsvConverter().convert(rows);
   }
 
-  /// Exports all subtasks of a task to a CSV file
-  static Future<String> exportSubtasksToCsv(List<Subtask> subtasks, String filePath) async {
+  /// Generates CSV content for subtasks
+  static String generateSubtasksCsv(List<Subtask> subtasks) {
     final List<List<dynamic>> rows = [
       [
         'ID',
@@ -98,9 +95,13 @@ class CsvExporter {
         ];
       })
     ];
-    String csv = const ListToCsvConverter().convert(rows);
+    return const ListToCsvConverter().convert(rows);
+  }
+  
+  /// Writes CSV content to a file
+  static Future<String> writeToFile(String csvContent, String filePath) async {
     final file = File(filePath);
-    await file.writeAsString(csv);
+    await file.writeAsString(csvContent);
     return file.path;
   }
 }

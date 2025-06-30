@@ -159,19 +159,28 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
             icon: const Icon(Icons.download),
             tooltip: 'Exportar subtasks em CSV',
             onPressed: () async {
+              final String csvContent = CsvExporter.generateSubtasksCsv(_filteredSubtasks);
               final path = await getSaveLocation(
                 initialDirectory: './',
-                suggestedName: 'subtasks_${widget.task.id}.csv',
+                suggestedName: 'subtasks_${widget.task.title.replaceAll(' ', '_')}.csv',
                 acceptedTypeGroups: [
                   XTypeGroup(label: 'CSV', extensions: ['csv']),
                 ],
               );
               if (path == null) return;
-              await CsvExporter.exportSubtasksToCsv(_filteredSubtasks, path.path);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Subtasks exported to ${path.path}')),
-              );
+              
+              try {
+                await CsvExporter.writeToFile(csvContent, path.path);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Subtasks exported to ${path.path}')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error exporting subtasks: ${e.toString()}')),
+                );
+              }
             },
           ),
         ],

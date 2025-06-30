@@ -162,6 +162,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             icon: const Icon(Icons.download),
             tooltip: 'Exportar CSV',
             onPressed: () async {
+              final String csvContent = CsvExporter.generateTasksCsv(_filteredTasks);
               final path = await getSaveLocation(
                 initialDirectory: './',
                 suggestedName: 'tasks_export.csv',
@@ -170,12 +171,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ],
               );
               if (path == null) return;
-              await CsvExporter.exportTasksToCsv(_filteredTasks, path.path);
-
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Tasks exported to ${path.path}')),
-              );
+              
+              try {
+                await CsvExporter.writeToFile(csvContent, path.path);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Tasks exported to ${path.path}')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error exporting tasks: ${e.toString()}')),
+                );
+              }
             },
           ),
         ],
