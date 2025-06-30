@@ -36,24 +36,23 @@ class _TaskViewState extends State<TaskView> {
   Widget build(BuildContext context) {
     final invested = widget.viewModel.totalInvestedMinutes;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.viewModel.task.title),
-      ),
+      appBar: AppBar(title: Text(widget.viewModel.task.title)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Total invested time: $invested minutes', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Total invested time: $invested minutes',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _subtaskController,
-                    decoration: const InputDecoration(
-                      labelText: 'New Subtask',
-                    ),
+                    decoration: const InputDecoration(labelText: 'New Subtask'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -67,9 +66,11 @@ class _TaskViewState extends State<TaskView> {
             Expanded(
               child: ListView(
                 children: widget.viewModel.task.subtasks
-                    .map((subtask) => SubtaskView(
-                          viewModel: SubtaskViewModel(subtask: subtask),
-                        ))
+                    .map(
+                      (subtask) => SubtaskView(
+                        viewModel: SubtaskViewModel(subtask: subtask),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -79,4 +80,3 @@ class _TaskViewState extends State<TaskView> {
     );
   }
 }
-

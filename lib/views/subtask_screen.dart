@@ -8,8 +8,11 @@ import '../models/time_point.dart';
 import '../models/tag.dart';
 import '../viewmodels/tag_viewmodel.dart';
 import '../utils/csv_exporter.dart';
+import '../viewmodels/subtask_viewmodel.dart';
+import '../widgets/time_point_edit_modal.dart';
 import 'subtask_form.dart';
 import 'tag_management_screen.dart';
+
 /// Screen for managing subtasks of a specific task.
 class SubtaskScreen extends StatefulWidget {
   /// The task whose subtasks are being managed.
@@ -32,9 +35,11 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   /// Returns the filtered list of subtasks based on the search query.
   List<Subtask> get _filteredSubtasks {
     return _subtasks.where((subtask) {
-      final matchesQuery = _searchQuery.isEmpty ||
-        subtask.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        (subtask.notes?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      final matchesQuery =
+          _searchQuery.isEmpty ||
+          subtask.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (subtask.notes?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+              false);
       return matchesQuery;
     }).toList();
   }
@@ -47,7 +52,7 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
       if (mounted) setState(() {});
     });
   }
-  
+
   Future<void> _loadData() async {
     await _loadSubtasks();
     await _loadTags();
@@ -56,12 +61,15 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   /// Loads the subtasks for the current task from Hive.
   Future<void> _loadSubtasks() async {
     final box = Hive.box<Task>('tasks');
-    final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
+    final task = box.values.firstWhere(
+      (t) => t.id == widget.task.id,
+      orElse: () => widget.task,
+    );
     setState(() {
       _subtasks = List<Subtask>.from(task.subtasks);
     });
   }
-  
+
   /// Loads all available tags from Hive
   Future<void> _loadTags() async {
     await _tagViewModel.loadTags();
@@ -79,7 +87,10 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   /// Deletes the given subtask from the task.
   void _deleteSubtask(Subtask subtask) async {
     final box = Hive.box<Task>('tasks');
-    final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
+    final task = box.values.firstWhere(
+      (t) => t.id == widget.task.id,
+      orElse: () => widget.task,
+    );
     task.subtasks = List.from(task.subtasks)..remove(subtask);
     await task.save();
     await _loadSubtasks();
@@ -88,13 +99,20 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
   /// Toggles the play/pause state of the given subtask.
   void _togglePlayPause(Subtask subtask) async {
     final box = Hive.box<Task>('tasks');
-    final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
-    final isWorking = subtask.timePoints.isNotEmpty &&
+    final task = box.values.firstWhere(
+      (t) => t.id == widget.task.id,
+      orElse: () => widget.task,
+    );
+    final isWorking =
+        subtask.timePoints.isNotEmpty &&
         (subtask.timePoints.length % 2 == 1) &&
         subtask.timePoints.last.isStart;
     // Pause any other running subtask
     for (final s in task.subtasks) {
-      if (s != subtask && s.timePoints.isNotEmpty && (s.timePoints.length % 2 == 1) && s.timePoints.last.isStart) {
+      if (s != subtask &&
+          s.timePoints.isNotEmpty &&
+          (s.timePoints.length % 2 == 1) &&
+          s.timePoints.last.isStart) {
         s.timePoints = List.from(s.timePoints)
           ..add(TimePoint(timestamp: DateTime.now(), isStart: false));
       }
@@ -119,12 +137,17 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
             onAddNewTag: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TagManagementScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const TagManagementScreen(),
+                ),
               ).then((_) => _loadTags());
             },
             onSubmit: (name, description, tags) async {
               final box = Hive.box<Task>('tasks');
-              final task = box.values.firstWhere((t) => t.id == widget.task.id, orElse: () => widget.task);
+              final task = box.values.firstWhere(
+                (t) => t.id == widget.task.id,
+                orElse: () => widget.task,
+              );
               if (subtask == null) {
                 final newSubtask = Subtask(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -149,6 +172,64 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
     );
   }
 
+  /// Edits an existing timepoint
+  void _editTimePoint(Subtask subtask, TimePoint timePoint) async {
+    final index = subtask.timePoints.indexOf(timePoint);
+    DateTime? minDate;
+    DateTime? maxDate;
+
+    // Determine valid date limits for editing
+    if (index > 0) {
+      minDate = subtask.timePoints[index - 1].timestamp;
+    }
+
+    if (index < subtask.timePoints.length - 1) {
+      maxDate = subtask.timePoints[index + 1].timestamp;
+    }
+
+    final result = await showDialog<DateTime>(
+      context: context,
+      builder: (context) => TimePointEditModal(
+        timePoint: timePoint,
+        onSave: (newDateTime) {
+          // Check if the new date is within limits
+          if ((minDate == null || newDateTime.isAfter(minDate)) &&
+              (maxDate == null || newDateTime.isBefore(maxDate))) {
+            return Navigator.of(context).pop(newDateTime);
+          } else {
+            // Show error message if the date is not valid
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'The selected date and time do not respect the chronological order of events.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return null;
+          }
+        },
+      ),
+    );
+
+    if (result != null) {
+      final box = Hive.box<Task>('tasks');
+      final task = box.values.firstWhere(
+        (t) => t.id == widget.task.id,
+        orElse: () => widget.task,
+      );
+      final subtaskInTask = task.subtasks.firstWhere((s) => s.id == subtask.id);
+
+      // Create a view model to handle the subtask
+      final viewModel = SubtaskViewModel(subtask: subtaskInTask);
+      viewModel.updateTimePoint(timePoint, result);
+
+      await task.save();
+      await _loadSubtasks();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,16 +240,19 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
             icon: const Icon(Icons.download),
             tooltip: 'Exportar subtasks em CSV',
             onPressed: () async {
-              final String csvContent = CsvExporter.generateSubtasksCsv(_filteredSubtasks);
+              final String csvContent = CsvExporter.generateSubtasksCsv(
+                _filteredSubtasks,
+              );
               final path = await getSaveLocation(
                 initialDirectory: './',
-                suggestedName: 'subtasks_${widget.task.title.replaceAll(' ', '_')}.csv',
+                suggestedName:
+                    'subtasks_${widget.task.title.replaceAll(' ', '_')}.csv',
                 acceptedTypeGroups: [
                   XTypeGroup(label: 'CSV', extensions: ['csv']),
                 ],
               );
               if (path == null) return;
-              
+
               try {
                 await CsvExporter.writeToFile(csvContent, path.path);
                 if (!mounted) return;
@@ -178,7 +262,9 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error exporting subtasks: ${e.toString()}')),
+                  SnackBar(
+                    content: Text('Error exporting subtasks: ${e.toString()}'),
+                  ),
                 );
               }
             },
@@ -203,10 +289,12 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _filteredSubtasks.length,
-              separatorBuilder: (context, index) => const Divider(height: 32, thickness: 1),
+              separatorBuilder: (context, index) =>
+                  const Divider(height: 32, thickness: 1),
               itemBuilder: (context, index) {
                 final subtask = _filteredSubtasks[index];
-                final isWorking = subtask.timePoints.isNotEmpty &&
+                final isWorking =
+                    subtask.timePoints.isNotEmpty &&
                     (subtask.timePoints.length % 2 == 1) &&
                     subtask.timePoints.last.isStart;
                 return ListTile(
@@ -218,7 +306,10 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(child: Text(subtask.title)),
-                      Text(subtask.getFormattedInvestedTime(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        subtask.getFormattedInvestedTime(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   subtitle: Column(
@@ -234,19 +325,35 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
                           for (final tp in subtask.timePoints)
                             TextButton.icon(
                               style: TextButton.styleFrom(
-                                backgroundColor: tp.isStart ? Colors.green[100] : Colors.red[100],
-                                foregroundColor: tp.isStart ? Colors.green : Colors.red,
+                                backgroundColor: tp.isStart
+                                    ? Colors.green[100]
+                                    : Colors.red[100],
+                                foregroundColor: tp.isStart
+                                    ? Colors.green
+                                    : Colors.red,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
-                              onPressed: null,
-                              icon: Icon(tp.isStart ? Icons.play_arrow : Icons.pause, size: 16),
-                              label: Text(
-                                '${tp.timestamp.year.toString().padLeft(4, '0')}-'
-                                '${tp.timestamp.month.toString().padLeft(2, '0')}-'
-                                '${tp.timestamp.day.toString().padLeft(2, '0')} '
-                                '${tp.timestamp.hour.toString().padLeft(2, '0')}:''${tp.timestamp.minute.toString().padLeft(2, '0')}:''${tp.timestamp.second.toString().padLeft(2, '0')}',
+                              onPressed: () => _editTimePoint(subtask, tp),
+                              icon: Icon(
+                                tp.isStart ? Icons.play_arrow : Icons.pause,
+                                size: 16,
+                              ),
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${tp.timestamp.year.toString().padLeft(4, '0')}-'
+                                    '${tp.timestamp.month.toString().padLeft(2, '0')}-'
+                                    '${tp.timestamp.day.toString().padLeft(2, '0')} '
+                                    '${tp.timestamp.hour.toString().padLeft(2, '0')}:'
+                                    '${tp.timestamp.minute.toString().padLeft(2, '0')}:'
+                                    '${tp.timestamp.second.toString().padLeft(2, '0')}',
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.edit, size: 12),
+                                ],
                               ),
                             ),
                         ],

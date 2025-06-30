@@ -17,8 +17,12 @@ class CsvExporter {
         'End Date',
       ],
       ...tasks.map((task) {
-        final investedSeconds = task.subtasks.fold(0, (sum, subtask) => sum + subtask.getTotalInvestedSeconds());
-        final investedStr = '${investedSeconds ~/ 3600}h '
+        final investedSeconds = task.subtasks.fold(
+          0,
+          (sum, subtask) => sum + subtask.getTotalInvestedSeconds(),
+        );
+        final investedStr =
+            '${investedSeconds ~/ 3600}h '
             '${((investedSeconds % 3600) ~/ 60).toString().padLeft(2, '0')}m '
             '${(investedSeconds % 60).toString().padLeft(2, '0')}s';
         DateTime? firstStart;
@@ -39,10 +43,11 @@ class CsvExporter {
         String formatDate(DateTime? dt) {
           if (dt == null) return '';
           return '${dt.day.toString().padLeft(2, '0')}/'
-                 '${dt.month.toString().padLeft(2, '0')}/'
-                 '${dt.year} '
-                 '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+              '${dt.month.toString().padLeft(2, '0')}/'
+              '${dt.year} '
+              '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
         }
+
         return [
           task.id,
           task.title,
@@ -52,7 +57,7 @@ class CsvExporter {
           formatDate(firstStart),
           formatDate(lastStop),
         ];
-      })
+      }),
     ];
     return const ListToCsvConverter().convert(rows);
   }
@@ -73,18 +78,25 @@ class CsvExporter {
         final firstStart = subtask.timePoints
             .where((tp) => tp.isStart)
             .map((tp) => tp.timestamp)
-            .fold<DateTime?>(null, (prev, ts) => prev == null || ts.isBefore(prev) ? ts : prev);
+            .fold<DateTime?>(
+              null,
+              (prev, ts) => prev == null || ts.isBefore(prev) ? ts : prev,
+            );
         final lastStop = subtask.timePoints
             .where((tp) => !tp.isStart)
             .map((tp) => tp.timestamp)
-            .fold<DateTime?>(null, (prev, ts) => prev == null || ts.isAfter(prev) ? ts : prev);
+            .fold<DateTime?>(
+              null,
+              (prev, ts) => prev == null || ts.isAfter(prev) ? ts : prev,
+            );
         String formatDate(DateTime? dt) {
           if (dt == null) return '';
           return '${dt.day.toString().padLeft(2, '0')}/'
-                 '${dt.month.toString().padLeft(2, '0')}/'
-                 '${dt.year} '
-                 '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+              '${dt.month.toString().padLeft(2, '0')}/'
+              '${dt.year} '
+              '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
         }
+
         return [
           subtask.id,
           subtask.title,
@@ -93,11 +105,11 @@ class CsvExporter {
           formatDate(firstStart),
           formatDate(lastStop),
         ];
-      })
+      }),
     ];
     return const ListToCsvConverter().convert(rows);
   }
-  
+
   /// Writes CSV content to a file
   static Future<String> writeToFile(String csvContent, String filePath) async {
     final file = File(filePath);

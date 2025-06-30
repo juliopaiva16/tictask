@@ -4,10 +4,7 @@ import '../widgets/tictask_branding.dart';
 class SplashScreen extends StatefulWidget {
   final VoidCallback onInitializationComplete;
 
-  const SplashScreen({
-    super.key,
-    required this.onInitializationComplete,
-  });
+  const SplashScreen({super.key, required this.onInitializationComplete});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -27,21 +24,19 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+      ),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
+      ),
+    );
 
     _controller.forward().then((_) {
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -71,17 +66,14 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const TicTaskLogo(
-                      width: 300,
-                      isDark: true,
-                    ),
+                    const TicTaskLogo(width: 300, isDark: true),
                     const SizedBox(height: 24),
                     // Subtitle
                     Text(
                       'Task Management Made Simple',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
                     ),
                   ],
                 ),

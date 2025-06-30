@@ -37,7 +37,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await _loadTasks();
     await _loadTags();
   }
-  
+
   Future<void> _loadTasks() async {
     final box = Hive.box<Task>('tasks');
     setState(() {
@@ -46,7 +46,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       }).toList();
     });
   }
-  
+
   Future<void> _loadTags() async {
     await _tagViewModel.loadTags();
     setState(() {
@@ -57,22 +57,25 @@ class _TaskListScreenState extends State<TaskListScreen> {
   /// Returns the filtered list of tasks based on search query and selected tags.
   List<Task> get _filteredTasks {
     return _tasks.where((task) {
-      final matchesQuery = _searchQuery.isEmpty ||
-        task.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        (task.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
-      final matchesTags = _filterTags.isEmpty ||
-        _filterTags.every((tag) => task.tagIds.contains(tag.id));
+      final matchesQuery =
+          _searchQuery.isEmpty ||
+          task.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (task.description?.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ) ??
+              false);
+      final matchesTags =
+          _filterTags.isEmpty ||
+          _filterTags.every((tag) => task.tagIds.contains(tag.id));
       return matchesQuery && matchesTags;
     }).toList();
   }
 
   /// Navigates to the subtask screen for the selected task.
   void _openTask(Task task) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SubtaskScreen(task: task)
-      ),
-    ).then((_) => _loadTasks());
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => SubtaskScreen(task: task)))
+        .then((_) => _loadTasks());
   }
 
   /// Opens a dialog to edit the selected task and updates Hive.
@@ -135,7 +138,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   String _formatInvestedTime(Task task) {
-    final totalSeconds = task.subtasks.fold(0, (sum, subtask) => sum + subtask.getTotalInvestedSeconds());
+    final totalSeconds = task.subtasks.fold(
+      0,
+      (sum, subtask) => sum + subtask.getTotalInvestedSeconds(),
+    );
     final hours = totalSeconds ~/ 3600;
     final minutes = (totalSeconds % 3600) ~/ 60;
     final seconds = totalSeconds % 60;
@@ -154,7 +160,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         leadingWidth: 60,
         leading: const Padding(
           padding: EdgeInsets.only(left: 16.0, top: 16.0),
-          child: TicTaskIcon()
+          child: TicTaskIcon(),
         ),
         title: const Text('Tasks'),
         actions: [
@@ -162,7 +168,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
             icon: const Icon(Icons.download),
             tooltip: 'Exportar CSV',
             onPressed: () async {
-              final String csvContent = CsvExporter.generateTasksCsv(_filteredTasks);
+              final String csvContent = CsvExporter.generateTasksCsv(
+                _filteredTasks,
+              );
               final path = await getSaveLocation(
                 initialDirectory: './',
                 suggestedName: 'tasks_export.csv',
@@ -171,7 +179,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ],
               );
               if (path == null) return;
-              
+
               try {
                 await CsvExporter.writeToFile(csvContent, path.path);
                 if (!mounted) return;
@@ -181,7 +189,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error exporting tasks: ${e.toString()}')),
+                  SnackBar(
+                    content: Text('Error exporting tasks: ${e.toString()}'),
+                  ),
                 );
               }
             },
@@ -218,7 +228,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
               onAddNewTag: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const TagManagementScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const TagManagementScreen(),
+                  ),
                 ).then((_) => _loadTags());
               },
             ),
@@ -229,15 +241,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 itemBuilder: (context, index) {
                   final task = _filteredTasks[index];
                   final displayTags = task.tagIds
-                      .map((id) => _availableTags.firstWhere(
-                            (t) => t.id == id,
-                            orElse: () => Tag(
-                              id: id,
-                              name: id,
-                              iconCodePoint: Icons.label.codePoint,
-                              colorValue: Colors.grey.value,
-                            ),
-                          ))
+                      .map(
+                        (id) => _availableTags.firstWhere(
+                          (t) => t.id == id,
+                          orElse: () => Tag(
+                            id: id,
+                            name: id,
+                            iconCodePoint: Icons.label.codePoint,
+                            colorValue: Colors.grey.value,
+                          ),
+                        ),
+                      )
                       .whereType<Tag>()
                       .toList();
                   return Card(
@@ -249,14 +263,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         children: [
                           Text(
                             task.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                 ),
                           ),
-                          if (task.description != null && task.description!.isNotEmpty)
+                          if (task.description != null &&
+                              task.description!.isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(top: 4.0, bottom: 16.0),
+                              padding: const EdgeInsets.only(
+                                top: 4.0,
+                                bottom: 16.0,
+                              ),
                               child: Text(
                                 task.description!,
                                 style: Theme.of(context).textTheme.bodySmall,
@@ -280,17 +299,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               for (final subtask in task.subtasks) {
                                 for (final tp in subtask.timePoints) {
                                   if (tp.isStart) {
-                                    if (firstStart == null || tp.timestamp.isBefore(firstStart)) {
+                                    if (firstStart == null ||
+                                        tp.timestamp.isBefore(firstStart)) {
                                       firstStart = tp.timestamp;
                                     }
                                   } else {
-                                    if (lastStop == null || tp.timestamp.isAfter(lastStop)) {
+                                    if (lastStop == null ||
+                                        tp.timestamp.isAfter(lastStop)) {
                                       lastStop = tp.timestamp;
                                     }
                                   }
                                 }
                               }
-                              return StartEndDateRow(start: firstStart, end: lastStop);
+                              return StartEndDateRow(
+                                start: firstStart,
+                                end: lastStop,
+                              );
                             },
                           ),
                         ],
@@ -352,15 +376,28 @@ class StartEndDateRow extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Start', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
-              Text(_format(start), style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'Start',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                _format(start),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('End', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'End',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
               Text(_format(end), style: Theme.of(context).textTheme.bodySmall),
             ],
           ),

@@ -74,12 +74,14 @@ class _TagFormState extends State<TagForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialTag?.name ?? '');
-    _selectedColor = widget.initialTag != null 
-        ? widget.initialTag!.color 
+    _nameController = TextEditingController(
+      text: widget.initialTag?.name ?? '',
+    );
+    _selectedColor = widget.initialTag != null
+        ? widget.initialTag!.color
         : _availableColors[0];
-    _selectedIcon = widget.initialTag != null 
-        ? widget.initialTag!.icon 
+    _selectedIcon = widget.initialTag != null
+        ? widget.initialTag!.icon
         : _availableIcons[0];
   }
 
@@ -96,12 +98,12 @@ class _TagFormState extends State<TagForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomTextField(
-            controller: _nameController,
-            label: 'Tag name',
-          ),
+          CustomTextField(controller: _nameController, label: 'Tag name'),
           const SizedBox(height: 16),
-          const Text('Select Color', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Select Color',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           SizedBox(
             height: 50,
@@ -110,7 +112,7 @@ class _TagFormState extends State<TagForm> {
               child: Row(
                 children: _availableColors.map((color) {
                   final isSelected = color.value == _selectedColor.value;
-                  
+
                   return GestureDetector(
                     onTap: () {
                       setState(() {
@@ -129,9 +131,9 @@ class _TagFormState extends State<TagForm> {
                           width: 2,
                         ),
                       ),
-                      child: isSelected 
-                        ? const Icon(Icons.check, color: Colors.white) 
-                        : null,
+                      child: isSelected
+                          ? const Icon(Icons.check, color: Colors.white)
+                          : null,
                     ),
                   );
                 }).toList(),
@@ -139,7 +141,10 @@ class _TagFormState extends State<TagForm> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Select Icon', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Select Icon',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 200),
@@ -149,7 +154,7 @@ class _TagFormState extends State<TagForm> {
                 runSpacing: 8,
                 children: _availableIcons.map((icon) {
                   final isSelected = icon.codePoint == _selectedIcon.codePoint;
-                  
+
                   return GestureDetector(
                     onTap: () {
                       setState(() {
@@ -160,15 +165,19 @@ class _TagFormState extends State<TagForm> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: isSelected ? _selectedColor.withOpacity(0.2) : Colors.grey[200],
+                        color: isSelected
+                            ? _selectedColor.withOpacity(0.2)
+                            : Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSelected ? _selectedColor : Colors.transparent,
+                          color: isSelected
+                              ? _selectedColor
+                              : Colors.transparent,
                           width: 2,
                         ),
                       ),
                       child: Icon(
-                        icon, 
+                        icon,
                         color: isSelected ? _selectedColor : Colors.grey[600],
                       ),
                     ),
@@ -184,7 +193,10 @@ class _TagFormState extends State<TagForm> {
               if (widget.onDelete != null)
                 TextButton(
                   onPressed: widget.onDelete,
-                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ),
               ElevatedButton(
                 onPressed: () {

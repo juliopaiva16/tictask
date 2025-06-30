@@ -10,10 +10,9 @@ import 'utils/hive_utils.dart';
 import 'views/task_list_screen.dart';
 import 'views/splash_screen.dart';
 
-
 final ThemeData ticTaskTheme = ThemeData(
   // Cores principais
-  primaryColor: const Color(0xFFFFFFFF),        // Fundo branco do ícone
+  primaryColor: const Color(0xFFFFFFFF), // Fundo branco do ícone
   scaffoldBackgroundColor: const Color(0xFFFFFFFF),
   canvasColor: const Color(0xFFFFFFFF),
 
@@ -53,9 +52,7 @@ final ThemeData ticTaskTheme = ThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: const Color(0xFF4CAF50), // verde-limão
       foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       textStyle: const TextStyle(
         fontFamily: 'Poppins',
         fontWeight: FontWeight.w600,
@@ -96,44 +93,44 @@ void main() async {
   Hive
     ..init(
       Platform.isMacOS || Platform.isLinux || Platform.isWindows
-        ? './hive'
-        : 'hive'
+          ? './hive'
+          : 'hive',
     )
     ..registerAdapter(TagAdapter())
     ..registerAdapter(TimePointAdapter())
     ..registerAdapter(SubtaskAdapter())
     ..registerAdapter(TaskAdapter());
-  
+
   try {
     await Hive.openBox<Task>('tasks');
     await Hive.openBox<Tag>('tags');
   } catch (e) {
     print('Error opening Hive boxes: $e');
     print('Clearing database and retrying...');
-    
+
     // Try to close any open boxes first
     await Hive.close();
-    
+
     // Delete the Hive database
     await HiveUtils.deleteHiveFolder();
-    
+
     // Reinitialize Hive
     Hive
       ..init(
         Platform.isMacOS || Platform.isLinux || Platform.isWindows
-          ? './hive'
-          : 'hive'
+            ? './hive'
+            : 'hive',
       )
       ..registerAdapter(TagAdapter())
       ..registerAdapter(TimePointAdapter())
       ..registerAdapter(SubtaskAdapter())
       ..registerAdapter(TaskAdapter());
-      
+
     // Try opening the boxes again
     await Hive.openBox<Task>('tasks');
     await Hive.openBox<Tag>('tags');
   }
-  
+
   runApp(const MyApp());
 }
 
@@ -161,10 +158,30 @@ class AppWrapper extends StatefulWidget {
 class _AppWrapperState extends State<AppWrapper> {
   bool _isInitialized = false;
   final List<Tag> _initialTags = [
-    Tag(id: '1', name: 'Development', iconCodePoint: Icons.code.codePoint, colorValue: Colors.blue.value),
-    Tag(id: '2', name: 'Meeting', iconCodePoint: Icons.people.codePoint, colorValue: Colors.green.value),
-    Tag(id: '3', name: 'Research', iconCodePoint: Icons.search.codePoint, colorValue: Colors.orange.value),
-    Tag(id: '4', name: 'Testing', iconCodePoint: Icons.bug_report.codePoint, colorValue: Colors.red.value),
+    Tag(
+      id: '1',
+      name: 'Development',
+      iconCodePoint: Icons.code.codePoint,
+      colorValue: Colors.blue.value,
+    ),
+    Tag(
+      id: '2',
+      name: 'Meeting',
+      iconCodePoint: Icons.people.codePoint,
+      colorValue: Colors.green.value,
+    ),
+    Tag(
+      id: '3',
+      name: 'Research',
+      iconCodePoint: Icons.search.codePoint,
+      colorValue: Colors.orange.value,
+    ),
+    Tag(
+      id: '4',
+      name: 'Testing',
+      iconCodePoint: Icons.bug_report.codePoint,
+      colorValue: Colors.red.value,
+    ),
   ];
 
   @override
@@ -192,9 +209,7 @@ class _AppWrapperState extends State<AppWrapper> {
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
-      return SplashScreen(
-        onInitializationComplete: _onInitializationComplete,
-      );
+      return SplashScreen(onInitializationComplete: _onInitializationComplete);
     }
 
     return TaskListScreen();

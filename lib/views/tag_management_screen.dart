@@ -13,18 +13,18 @@ class TagManagementScreen extends StatefulWidget {
 
 class _TagManagementScreenState extends State<TagManagementScreen> {
   final TagViewModel _tagViewModel = TagViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _loadTags();
   }
-  
+
   Future<void> _loadTags() async {
     await _tagViewModel.loadTags();
     setState(() {});
   }
-  
+
   void _showCreateTagScreen() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -80,13 +80,11 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Tags'),
-      ),
+      appBar: AppBar(title: const Text('Manage Tags')),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateTagScreen,
         child: const Icon(Icons.add),
@@ -129,9 +127,13 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            tooltip: _tagViewModel.isDefaultTag(tag) ? 'Default tags cannot be deleted' : 'Delete',
+                            tooltip: _tagViewModel.isDefaultTag(tag)
+                                ? 'Default tags cannot be deleted'
+                                : 'Delete',
                             color: Colors.red,
-                            onPressed: _tagViewModel.isDefaultTag(tag) ? null : () => _showDeleteConfirmation(tag),
+                            onPressed: _tagViewModel.isDefaultTag(tag)
+                                ? null
+                                : () => _showDeleteConfirmation(tag),
                           ),
                         ],
                       ),
@@ -160,8 +162,9 @@ class _TagFormScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Check if the tag is a default tag that can't be deleted
     final TagViewModel tagViewModel = TagViewModel();
-    final bool isDefaultTag = initialTag != null && tagViewModel.isDefaultTag(initialTag!);
-    
+    final bool isDefaultTag =
+        initialTag != null && tagViewModel.isDefaultTag(initialTag!);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(initialTag == null ? 'Create Tag' : 'Edit Tag'),
@@ -174,30 +177,39 @@ class _TagFormScreen extends StatelessWidget {
             onSaved(name, icon, color);
             Navigator.pop(context);
           },
-          onDelete: onDeleted != null && !isDefaultTag ? () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Confirm Delete'),
-                content: Text('Are you sure you want to delete "${initialTag!.name}"?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
-            ) ?? false;
-            
-            if (confirmed) {
-              onDeleted!();
-              if (context.mounted) Navigator.of(context).pop();
-            }
-          } : null,
+          onDelete: onDeleted != null && !isDefaultTag
+              ? () async {
+                  final confirmed =
+                      await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirm Delete'),
+                          content: Text(
+                            'Are you sure you want to delete "${initialTag!.name}"?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                      false;
+
+                  if (confirmed) {
+                    onDeleted!();
+                    if (context.mounted) Navigator.of(context).pop();
+                  }
+                }
+              : null,
         ),
       ),
     );

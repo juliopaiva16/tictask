@@ -21,7 +21,7 @@ class Subtask extends HiveObject {
   /// Optional notes or description for the subtask.
   @HiveField(3)
   String? notes;
-  
+
   /// List of tag IDs associated with this subtask.
   @HiveField(4)
   List<String> tagIds;

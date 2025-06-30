@@ -32,6 +32,7 @@ class Tag extends HiveObject {
 
   /// Returns the [IconData] for this tag.
   IconData get icon => IconData(iconCodePoint, fontFamily: 'MaterialIcons');
+
   /// Returns the [Color] for this tag.
   Color get color => Color(colorValue);
 

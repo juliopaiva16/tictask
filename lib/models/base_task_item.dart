@@ -2,8 +2,10 @@
 abstract class BaseTaskItem {
   /// Unique identifier for the item.
   final String id;
+
   /// Title of the item.
   String title;
+
   /// Optional notes or description for the item.
   String? notes;
 
