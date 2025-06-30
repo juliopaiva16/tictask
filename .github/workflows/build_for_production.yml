@@ -86,14 +86,23 @@ jobs:
       # Step 6: Build the macOS application in release mode
       - name: Build macOS Application
         run: flutter build macos --release --no-tree-shake-icons
-      
+
+      # Navigate to the build directory and create a zip file for the macOS app
+      # This is necessary to ensure the .app structure is preserved in the zip
+      - name: Create macOS Zip
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r TicTask-macOS.zip TicTask.app
+
       # Step 7: Archive the build artifacts
       - name: Archive macOS Build
-        uses: actions/upload-artifact@v4
+        uses: action?s/upload-artifact@v4
         with:
           name: build-macos
-          path: build/macos/Build/Products/Release/tictask.app
+          path: build/macos/Build/Products/Release/TicTask-macOS.zip
           retention-days: 7 # Number of days to keep the artifacts
+          if-no-files-found: error
+          compression-level: 0 # No compression to preserve file structure
 
   build-linux:
     runs-on: ubuntu-latest
