@@ -8,7 +8,8 @@ import 'custom_text_field.dart';
 class TaskForm extends StatefulWidget {
   final List<Tag> availableTags;
   final Task? initialTask;
-  final void Function(String name, List<Tag> tags, {String? description}) onSubmit;
+  final void Function(String name, List<Tag> tags, {String? description})
+  onSubmit;
   final void Function()? onDelete;
 
   const TaskForm({
@@ -31,10 +32,16 @@ class _TaskFormState extends State<TaskForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialTask?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.initialTask?.description ?? '');
+    _nameController = TextEditingController(
+      text: widget.initialTask?.title ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.initialTask?.description ?? '',
+    );
     _selectedTags = widget.initialTask != null
-        ? widget.availableTags.where((tag) => widget.initialTask!.tagIds.contains(tag.id)).toList()
+        ? widget.availableTags
+              .where((tag) => widget.initialTask!.tagIds.contains(tag.id))
+              .toList()
         : <Tag>[];
   }
 
@@ -61,10 +68,7 @@ class _TaskFormState extends State<TaskForm> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CustomTextField(
-          controller: _nameController,
-          label: 'Task name',
-        ),
+        CustomTextField(controller: _nameController, label: 'Task name'),
         const SizedBox(height: 8),
         CustomTextField(
           controller: _descriptionController,
@@ -84,7 +88,10 @@ class _TaskFormState extends State<TaskForm> {
             if (widget.onDelete != null)
               TextButton(
                 onPressed: widget.onDelete,
-                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ElevatedButton(
               onPressed: () {

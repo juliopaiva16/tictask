@@ -5,12 +5,16 @@ import '../models/tag.dart';
 class TagSelector extends StatelessWidget {
   /// List of all available tags.
   final List<Tag> availableTags;
+
   /// Set of currently selected tags.
   final List<Tag> selectedTags;
+
   /// Callback when a tag is toggled (selected/deselected).
   final void Function(Tag tag)? onTagToggle;
+
   /// If true, the widget is read-only and only displays selected tags.
   final bool readOnly;
+
   /// Callback when the "Add New Tag" button is pressed.
   final VoidCallback? onAddNewTag;
 
@@ -47,7 +51,9 @@ class TagSelector extends StatelessWidget {
               ),
             ...availableTags.map((tag) {
               final isSelected = selectedTags.contains(tag);
-              final chipColor = isSelected ? tag.color.withAlpha(51) : Colors.grey[200];
+              final chipColor = isSelected
+                  ? tag.color.withAlpha(51)
+                  : Colors.grey[200];
               final borderColor = tag.color;
               final textColor = tag.color;
               final borderRadius = BorderRadius.circular(8); // Less rounded
@@ -74,11 +80,15 @@ class TagSelector extends StatelessWidget {
                   label: Text(tag.name),
                   selected: isSelected,
                   selectedColor: tag.color.withAlpha(51),
-                  onSelected: onTagToggle != null ? (_) => onTagToggle!(tag) : null,
+                  onSelected: onTagToggle != null
+                      ? (_) => onTagToggle!(tag)
+                      : null,
                   backgroundColor: chipColor,
                   labelStyle: TextStyle(
                     color: textColor,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: borderRadius,

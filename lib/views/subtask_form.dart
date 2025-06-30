@@ -8,10 +8,13 @@ import 'custom_text_field.dart';
 class SubtaskForm extends StatefulWidget {
   /// The initial subtask to edit, or null to create a new one.
   final Subtask? initialSubtask;
+
   /// List of available tags to choose from
   final List<Tag> availableTags;
+
   /// Callback when the form is submitted with name, description, and tags.
   final void Function(String name, String description, List<Tag> tags) onSubmit;
+
   /// Callback when "Add New Tag" button is pressed
   final VoidCallback? onAddNewTag;
 
@@ -36,10 +39,18 @@ class _SubtaskFormState extends State<SubtaskForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialSubtask?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.initialSubtask?.notes ?? '');
-    _selectedTags = widget.initialSubtask != null && widget.initialSubtask!.tagIds.isNotEmpty
-        ? widget.availableTags.where((tag) => widget.initialSubtask!.tagIds.contains(tag.id)).toList()
+    _nameController = TextEditingController(
+      text: widget.initialSubtask?.title ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.initialSubtask?.notes ?? '',
+    );
+    _selectedTags =
+        widget.initialSubtask != null &&
+            widget.initialSubtask!.tagIds.isNotEmpty
+        ? widget.availableTags
+              .where((tag) => widget.initialSubtask!.tagIds.contains(tag.id))
+              .toList()
         : <Tag>[];
   }
 
@@ -66,10 +77,7 @@ class _SubtaskFormState extends State<SubtaskForm> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CustomTextField(
-          controller: _nameController,
-          label: 'Subtask name',
-        ),
+        CustomTextField(controller: _nameController, label: 'Subtask name'),
         const SizedBox(height: 8),
         CustomTextField(
           controller: _descriptionController,

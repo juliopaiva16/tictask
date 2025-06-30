@@ -12,7 +12,8 @@ class TicTaskLoadingIndicator extends StatefulWidget {
   });
 
   @override
-  State<TicTaskLoadingIndicator> createState() => _TicTaskLoadingIndicatorState();
+  State<TicTaskLoadingIndicator> createState() =>
+      _TicTaskLoadingIndicatorState();
 }
 
 class _TicTaskLoadingIndicatorState extends State<TicTaskLoadingIndicator>
@@ -27,14 +28,11 @@ class _TicTaskLoadingIndicatorState extends State<TicTaskLoadingIndicator>
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     _rotationAnimation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.linear,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
 
     _controller.repeat();
   }
@@ -87,33 +85,26 @@ class TicTaskEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TicTaskIcon(
-              width: 80,
-              height: 80,
-              isDark: isDark,
-            ),
+            TicTaskIcon(width: 80, height: 80, isDark: isDark),
             const SizedBox(height: 24),
             Text(
               title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
             if (onAction != null && actionText != null) ...[
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: onAction,
-                child: Text(actionText!),
-              ),
+              ElevatedButton(onPressed: onAction, child: Text(actionText!)),
             ],
           ],
         ),

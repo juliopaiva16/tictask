@@ -4,14 +4,19 @@ import 'package:flutter/material.dart';
 class CustomTextField extends StatelessWidget {
   /// Controller for the text field.
   final TextEditingController controller;
+
   /// Label for the text field.
   final String label;
+
   /// Maximum number of lines for the text field.
   final int? maxLines;
+
   /// Whether to obscure the text (for passwords).
   final bool obscureText;
+
   /// Keyboard type for the text field.
   final TextInputType? keyboardType;
+
   /// Optional validator function for the text field.
   final String? Function(String?)? validator;
 

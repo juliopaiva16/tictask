@@ -42,6 +42,10 @@ class Task extends HiveObject {
 
   /// Calculates the total invested time in this task (sum of all subtasks) in minutes.
   int getTotalInvestedMinutes() {
-    return subtasks.fold(0, (sum, subtask) => sum + subtask.getTotalInvestedSeconds()) ~/ 60;
+    return subtasks.fold(
+          0,
+          (sum, subtask) => sum + subtask.getTotalInvestedSeconds(),
+        ) ~/
+        60;
   }
 }

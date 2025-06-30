@@ -5,10 +5,10 @@ import '../models/time_point.dart';
 class TimePointEditModal extends StatefulWidget {
   /// The timepoint to be edited
   final TimePoint timePoint;
-  
+
   /// Callback called when the timepoint is saved
   final Function(DateTime newDateTime) onSave;
-  
+
   const TimePointEditModal({
     super.key,
     required this.timePoint,
@@ -22,7 +22,7 @@ class TimePointEditModal extends StatefulWidget {
 class _TimePointEditModalState extends State<TimePointEditModal> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
-  
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +32,7 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
       minute: widget.timePoint.timestamp.minute,
     );
   }
-  
+
   void _selectDate() async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -40,7 +40,7 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    
+
     if (pickedDate != null && pickedDate != _selectedDate) {
       setState(() {
         _selectedDate = DateTime(
@@ -54,13 +54,13 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
       });
     }
   }
-  
+
   void _selectTime() async {
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
     );
-    
+
     if (pickedTime != null && pickedTime != _selectedTime) {
       setState(() {
         _selectedTime = pickedTime;
@@ -75,18 +75,18 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
       });
     }
   }
-  
+
   void _saveTimePoint() {
     widget.onSave(_selectedDate);
     Navigator.of(context).pop();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final isStartPoint = widget.timePoint.isStart;
     final iconColor = isStartPoint ? Colors.green : Colors.red;
     final iconData = isStartPoint ? Icons.play_arrow : Icons.stop;
-    
+
     return AlertDialog(
       title: Row(
         children: [
@@ -112,21 +112,25 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
               ],
             ),
           ),
-          
+
           // Date selection
           ListTile(
             leading: const Icon(Icons.calendar_today),
             title: const Text('Date'),
-            subtitle: Text('${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}'),
+            subtitle: Text(
+              '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
+            ),
             trailing: const Icon(Icons.arrow_drop_down),
             onTap: _selectDate,
           ),
-          
+
           // Time selection
           ListTile(
             leading: const Icon(Icons.access_time),
             title: const Text('Time'),
-            subtitle: Text('${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}'),
+            subtitle: Text(
+              '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+            ),
             trailing: const Icon(Icons.arrow_drop_down),
             onTap: _selectTime,
           ),
@@ -137,16 +141,13 @@ class _TimePointEditModalState extends State<TimePointEditModal> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        ElevatedButton(
-          onPressed: _saveTimePoint,
-          child: const Text('Save'),
-        ),
+        ElevatedButton(onPressed: _saveTimePoint, child: const Text('Save')),
       ],
     );
   }
-  
+
   String _formatDateTime(DateTime dt) {
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
   }
 }

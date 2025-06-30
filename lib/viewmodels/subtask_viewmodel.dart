@@ -25,15 +25,15 @@ class SubtaskViewModel with TaskTimeMixin<Subtask> {
         timestamp: newTimestamp,
         isStart: oldTimePoint.isStart,
       );
-      
+
       final newTimePoints = List<TimePoint>.from(subtask.timePoints);
       newTimePoints[index] = updatedTimePoint;
-      
+
       // Ensure timepoints are ordered chronologically
       if (newTimePoints.length > 1) {
         newTimePoints.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       }
-      
+
       subtask.timePoints = newTimePoints;
     }
   }

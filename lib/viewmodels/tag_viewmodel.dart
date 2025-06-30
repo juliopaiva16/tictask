@@ -6,7 +6,7 @@ import '../models/tag.dart';
 /// Handles business logic and state for tag management.
 class TagViewModel with ChangeNotifier {
   List<Tag> _tags = [];
-  
+
   /// Get all tags
   List<Tag> get tags => _tags;
 
@@ -32,18 +32,23 @@ class TagViewModel with ChangeNotifier {
       iconCodePoint: icon.codePoint,
       colorValue: color.value,
     );
-    
+
     await box.add(newTag);
     await loadTags();
     return newTag;
   }
 
   /// Update an existing tag
-  Future<void> updateTag(Tag tag, String name, IconData icon, Color color) async {
+  Future<void> updateTag(
+    Tag tag,
+    String name,
+    IconData icon,
+    Color color,
+  ) async {
     tag.name = name;
     tag.iconCodePoint = icon.codePoint;
     tag.colorValue = color.value;
-    
+
     await tag.save();
     await loadTags();
   }
@@ -55,7 +60,7 @@ class TagViewModel with ChangeNotifier {
       print('Attempted to delete a default tag: ${tag.name}');
       return;
     }
-    
+
     final box = Hive.box<Tag>('tags');
     await box.delete(tag.key);
     await loadTags();

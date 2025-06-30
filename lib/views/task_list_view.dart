@@ -39,7 +39,7 @@ class _TaskListViewState extends State<TaskListView> {
     if (name.isNotEmpty) {
       // Garante unicidade dos ids das tags
       final uniqueTagIds = {
-        for (final tag in _selectedTags) tag.id: tag
+        for (final tag in _selectedTags) tag.id: tag,
       }.keys.toList();
       final task = Task(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -104,11 +104,13 @@ class _TaskListViewState extends State<TaskListView> {
             const SizedBox(height: 8),
             Wrap(
               children: widget.availableTags
-                  .map((tag) => _buildTagChip(
-                        tag,
-                        selected: _selectedTags.contains(tag),
-                        onTap: () => _toggleTag(tag),
-                      ))
+                  .map(
+                    (tag) => _buildTagChip(
+                      tag,
+                      selected: _selectedTags.contains(tag),
+                      onTap: () => _toggleTag(tag),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 8),
@@ -124,15 +126,17 @@ class _TaskListViewState extends State<TaskListView> {
                   final task = _tasks[index];
                   // Busca as instâncias de Tag usando os ids salvos
                   final displayTags = task.tagIds
-                      .map((id) => widget.availableTags.firstWhere(
-                            (t) => t.id == id,
-                            orElse: () => Tag(
-                              id: id,
-                              name: id,
-                              iconCodePoint: Icons.label.codePoint,
-                              colorValue: Colors.grey.toARGB32(),
-                            ),
-                          ))
+                      .map(
+                        (id) => widget.availableTags.firstWhere(
+                          (t) => t.id == id,
+                          orElse: () => Tag(
+                            id: id,
+                            name: id,
+                            iconCodePoint: Icons.label.codePoint,
+                            colorValue: Colors.grey.toARGB32(),
+                          ),
+                        ),
+                      )
                       .whereType<Tag>()
                       .toList();
                   return ListTile(
@@ -153,4 +157,3 @@ class _TaskListViewState extends State<TaskListView> {
     );
   }
 }
-

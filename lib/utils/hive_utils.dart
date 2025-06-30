@@ -10,13 +10,13 @@ class HiveUtils {
     await Hive.deleteBoxFromDisk('tags');
     print('All Hive boxes have been cleared.');
   }
-  
+
   /// Deletes the entire Hive database folder
   static Future<void> deleteHiveFolder() async {
     final hivePath = Platform.isMacOS || Platform.isLinux || Platform.isWindows
         ? './hive'
         : 'hive';
-    
+
     final directory = Directory(hivePath);
     if (await directory.exists()) {
       await directory.delete(recursive: true);
@@ -25,15 +25,16 @@ class HiveUtils {
       print('Hive folder does not exist.');
     }
   }
-  
+
   /// Backs up the Hive database
   static Future<void> backupHiveDatabase() async {
     final hivePath = Platform.isMacOS || Platform.isLinux || Platform.isWindows
         ? './hive'
         : 'hive';
-    
-    final backupPath = '${hivePath}_backup_${DateTime.now().millisecondsSinceEpoch}';
-    
+
+    final backupPath =
+        '${hivePath}_backup_${DateTime.now().millisecondsSinceEpoch}';
+
     final directory = Directory(hivePath);
     if (await directory.exists()) {
       final backupDir = Directory(backupPath);
@@ -43,17 +44,23 @@ class HiveUtils {
       print('Hive folder does not exist, no backup created.');
     }
   }
-  
-  static Future<void> _copyDirectory(Directory source, Directory destination) async {
+
+  static Future<void> _copyDirectory(
+    Directory source,
+    Directory destination,
+  ) async {
     await destination.create(recursive: true);
-    
+
     await for (var entity in source.list(recursive: false)) {
       if (entity is Directory) {
-        final newDirectory = Directory(path.join(
-          destination.path, path.basename(entity.path)));
+        final newDirectory = Directory(
+          path.join(destination.path, path.basename(entity.path)),
+        );
         await _copyDirectory(entity, newDirectory);
       } else if (entity is File) {
-        await entity.copy(path.join(destination.path, path.basename(entity.path)));
+        await entity.copy(
+          path.join(destination.path, path.basename(entity.path)),
+        );
       }
     }
   }

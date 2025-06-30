@@ -36,7 +36,10 @@ class _SubtaskViewState extends State<SubtaskView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.viewModel.subtask.title, style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              widget.viewModel.subtask.title,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 16),
             Text('Total invested time: $invested'),
             const SizedBox(height: 16),
@@ -46,13 +49,17 @@ class _SubtaskViewState extends State<SubtaskView> {
             ),
             const SizedBox(height: 16),
             Text('Time points:'),
-            ...widget.viewModel.subtask.timePoints.map((tp) => Text(
-              '${tp.isStart ? 'Start' : 'Stop'}: '
-              '${tp.timestamp.year.toString().padLeft(4, '0')}-'
-              '${tp.timestamp.month.toString().padLeft(2, '0')}-'
-              '${tp.timestamp.day.toString().padLeft(2, '0')} '
-              '${tp.timestamp.hour.toString().padLeft(2, '0')}:''${tp.timestamp.minute.toString().padLeft(2, '0')}:''${tp.timestamp.second.toString().padLeft(2, '0')}',
-            )),
+            ...widget.viewModel.subtask.timePoints.map(
+              (tp) => Text(
+                '${tp.isStart ? 'Start' : 'Stop'}: '
+                '${tp.timestamp.year.toString().padLeft(4, '0')}-'
+                '${tp.timestamp.month.toString().padLeft(2, '0')}-'
+                '${tp.timestamp.day.toString().padLeft(2, '0')} '
+                '${tp.timestamp.hour.toString().padLeft(2, '0')}:'
+                '${tp.timestamp.minute.toString().padLeft(2, '0')}:'
+                '${tp.timestamp.second.toString().padLeft(2, '0')}',
+              ),
+            ),
           ],
         ),
       ),

@@ -6,12 +6,7 @@ class TicTaskLogo extends StatelessWidget {
   final double? height;
   final bool isDark;
 
-  const TicTaskLogo({
-    super.key,
-    this.width,
-    this.height,
-    this.isDark = true,
-  });
+  const TicTaskLogo({super.key, this.width, this.height, this.isDark = true});
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +24,7 @@ class TicTaskIcon extends StatelessWidget {
   final double? height;
   final bool isDark;
 
-  const TicTaskIcon({
-    super.key,
-    this.width,
-    this.height,
-    this.isDark = true,
-  });
+  const TicTaskIcon({super.key, this.width, this.height, this.isDark = true});
 
   @override
   Widget build(BuildContext context) {
