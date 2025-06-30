@@ -197,11 +197,12 @@ jobs:
       - name: Set Version Variable
         id: get_version
         run: |
-          VERSION="${{ needs.get-version.outputs.version }}"
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+          
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Using version: $VERSION"
           
-          # Fail fast if version is empty
+          # Fail fast if version is still empty
           if [ -z "$VERSION" ]; then
             echo "Error: Version is empty! Cannot create release with empty version."
             exit 1
@@ -267,7 +268,7 @@ jobs:
 
   # Job to merge main into development after successful release
   merge-to-development:
-    needs: create-release
+    needs: [create-release]
     runs-on: ubuntu-latest
     # Only run if all previous jobs succeeded
     if: success()
@@ -307,8 +308,9 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Use version from get-version job
-          VERSION="${{ needs.get-version.outputs.version }}"
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+          
+          echo "Using version: $VERSION"
           
           # Checkout development branch
           git checkout development
