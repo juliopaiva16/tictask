@@ -10,7 +10,7 @@ echo "🎨 Configurando ícone personalizado..."
 dart run flutter_launcher_icons
 
 echo "🔧 Construindo para release..."
-flutter build macos --release
+flutter build macos --release --no-tree-shake-icons
 
 echo "✅ Build concluído! Seu app agora tem o ícone personalizado do TicTask."
 echo ""

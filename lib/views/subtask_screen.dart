@@ -238,7 +238,7 @@ class _SubtaskScreenState extends State<SubtaskScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
-            tooltip: 'Exportar subtasks em CSV',
+            tooltip: 'Export subtasks to CSV',
             onPressed: () async {
               final String csvContent = CsvExporter.generateSubtasksCsv(
                 _filteredSubtasks,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/tictask_branding.dart';
+import '../utils/theme_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onInitializationComplete;
@@ -66,7 +68,12 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const TicTaskLogo(width: 300, isDark: true),
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) => TicTaskLogo(
+                        width: 300, 
+                        isDark: themeProvider.isDarkMode,
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     // Subtitle
                     Text(

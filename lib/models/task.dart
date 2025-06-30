@@ -22,7 +22,7 @@ class Task extends HiveObject {
   @HiveField(3)
   String status;
 
-  /// List of ids das tags atribuídas a esta task.
+  /// List of tag IDs assigned to this task.
   @HiveField(4)
   List<String> tagIds;
 

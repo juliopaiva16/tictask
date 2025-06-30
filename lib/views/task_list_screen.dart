@@ -1,9 +1,11 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../models/tag.dart';
 import '../utils/csv_exporter.dart';
+import '../utils/theme_provider.dart';
 import '../viewmodels/tag_viewmodel.dart';
 import '../views/subtask_screen.dart';
 import '../widgets/tictask_branding.dart';
@@ -150,6 +152,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
@@ -157,16 +161,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
         onPressed: _showTaskFormModal,
       ),
       appBar: AppBar(
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 16.0, top: 16.0),
-          child: TicTaskIcon(),
+        leadingWidth: 100, // Adjusted for better spacing
+        leading: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, top: 16.0),
+              child: TicTaskIcon(isDark: themeProvider.isDarkMode, width: 24, height: 24),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 4.0, top: 16.0),
+              child: IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode ? Icons.wb_sunny : Icons.nightlight_round,
+                  size: 20,
+                ),
+                tooltip: themeProvider.isDarkMode ? 'Switch to light theme' : 'Switch to dark theme',
+                onPressed: () {
+                  themeProvider.toggleTheme();
+                },
+              ),
+            ),
+          ],
         ),
         title: const Text('Tasks'),
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
-            tooltip: 'Exportar CSV',
+            tooltip: 'Export CSV',
             onPressed: () async {
               final String csvContent = CsvExporter.generateTasksCsv(
                 _filteredTasks,
@@ -351,7 +372,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 }
 
-// Widget utilitário para exibir datas de início e fim formatadas
+// Utility widget to display formatted start and end dates
 class StartEndDateRow extends StatelessWidget {
   final DateTime? start;
   final DateTime? end;

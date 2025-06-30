@@ -2,23 +2,26 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
 import 'models/task.dart';
 import 'models/tag.dart';
 import 'models/time_point.dart';
 import 'models/subtask.dart';
 import 'utils/hive_utils.dart';
+import 'utils/theme_provider.dart';
 import 'views/task_list_screen.dart';
 import 'views/splash_screen.dart';
 
-final ThemeData ticTaskTheme = ThemeData(
-  // Cores principais
-  primaryColor: const Color(0xFFFFFFFF), // Fundo branco do ícone
+// Light theme
+final ThemeData ticTaskLightTheme = ThemeData(
+  // Main colors
+  primaryColor: const Color(0xFFFFFFFF), // White background of the icon
   scaffoldBackgroundColor: const Color(0xFFFFFFFF),
   canvasColor: const Color(0xFFFFFFFF),
 
-  // Cor de destaque
+  // Accent color
   colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFF4CAF50), // Verde-limão do checkmark
+    seedColor: const Color(0xFF4CAF50), // Lime green for the checkmark
     primary: const Color(0xFF4CAF50),
     onPrimary: Colors.white,
     secondary: const Color(0xFF4CAF50),
@@ -27,18 +30,18 @@ final ThemeData ticTaskTheme = ThemeData(
     brightness: Brightness.light,
   ),
 
-  // Texto
+  // Text
   textTheme: const TextTheme(
     headlineLarge: TextStyle(
       fontFamily: 'Poppins',
       fontSize: 32,
       fontWeight: FontWeight.w600,
-      color: Color(0xFF0D1B2A), // texto azul escuro
+      color: Color(0xFF0D1B2A), // dark blue text
     ),
     bodyLarge: TextStyle(
       fontFamily: 'Poppins',
       fontSize: 16,
-      color: Color(0xFF2E3A59), // cinza escuro para texto secundário
+      color: Color(0xFF2E3A59), // dark gray for secondary text
     ),
     labelLarge: TextStyle(
       fontFamily: 'Poppins',
@@ -47,10 +50,10 @@ final ThemeData ticTaskTheme = ThemeData(
     ),
   ),
 
-  // Botões e interações
+  // Buttons and interactions
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF4CAF50), // verde-limão
+      backgroundColor: const Color(0xFF4CAF50), // lime green
       foregroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       textStyle: const TextStyle(
@@ -75,16 +78,95 @@ final ThemeData ticTaskTheme = ThemeData(
     ),
   ),
 
-  // Ícones
+  // Icons
   iconTheme: const IconThemeData(
-    color: Color(0xFF4CAF50), // verde-limão para ícones destacados
+    color: Color(0xFF4CAF50), // lime green for highlighted icons
   ),
 
-  // Cursor do texto, seleção
+  // Text cursor, selection
   textSelectionTheme: const TextSelectionThemeData(
     cursorColor: Color(0xFF4CAF50),
-    selectionColor: Color(0x334CAF50), // mais suave em fundo claro
+    selectionColor: Color(0x334CAF50), // softer on light background
     selectionHandleColor: Color(0xFF4CAF50),
+  ),
+);
+
+// Dark theme
+final ThemeData ticTaskDarkTheme = ThemeData(
+  // Main colors
+  primaryColor: const Color(0xFF1F1F1F), // Dark background
+  scaffoldBackgroundColor: const Color(0xFF121212),
+  canvasColor: const Color(0xFF121212),
+
+  // Accent color
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFF66BB6A), // Lighter lime green for dark theme
+    primary: const Color(0xFF66BB6A),
+    onPrimary: Colors.black,
+    secondary: const Color(0xFF66BB6A),
+    surface: const Color(0xFF1F1F1F),
+    onSurface: Colors.white,
+    brightness: Brightness.dark,
+  ),
+
+  // Texto
+  textTheme: const TextTheme(
+    headlineLarge: TextStyle(
+      fontFamily: 'Poppins',
+      fontSize: 32,
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+    ),
+    bodyLarge: TextStyle(
+      fontFamily: 'Poppins',
+      fontSize: 16,
+      color: Color(0xFFD1D1D1), // light gray for secondary text
+    ),
+    labelLarge: TextStyle(
+      fontFamily: 'Poppins',
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+    ),
+  ),
+
+  // Buttons and interactions
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF66BB6A), // lighter lime green
+      foregroundColor: Colors.black,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      textStyle: const TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w600,
+        fontSize: 18,
+      ),
+    ),
+  ),
+
+  // AppBar
+  appBarTheme: const AppBarTheme(
+    backgroundColor: Color(0xFF1F1F1F),
+    foregroundColor: Colors.white,
+    elevation: 0,
+    centerTitle: true,
+    titleTextStyle: TextStyle(
+      fontFamily: 'Poppins',
+      fontWeight: FontWeight.w600,
+      fontSize: 20,
+      color: Colors.white,
+    ),
+  ),
+
+  // Icons
+  iconTheme: const IconThemeData(
+    color: Color(0xFF66BB6A), // lighter lime green for highlighted icons
+  ),
+
+  // Text cursor, selection
+  textSelectionTheme: const TextSelectionThemeData(
+    cursorColor: Color(0xFF66BB6A),
+    selectionColor: Color(0x3366BB6A), // softer on dark background
+    selectionHandleColor: Color(0xFF66BB6A),
   ),
 );
 
@@ -104,6 +186,7 @@ void main() async {
   try {
     await Hive.openBox<Task>('tasks');
     await Hive.openBox<Tag>('tags');
+    await Hive.openBox('app_settings'); // Box for app settings
   } catch (e) {
     print('Error opening Hive boxes: $e');
     print('Clearing database and retrying...');
@@ -129,9 +212,15 @@ void main() async {
     // Try opening the boxes again
     await Hive.openBox<Task>('tasks');
     await Hive.openBox<Tag>('tags');
+    await Hive.openBox('app_settings');
   }
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -139,10 +228,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'TicTask - Task Time Manager',
-      theme: ticTaskTheme,
+      theme: ticTaskLightTheme,
+      darkTheme: ticTaskDarkTheme,
+      themeMode: themeProvider.themeMode,
       home: const AppWrapper(),
     );
   }
