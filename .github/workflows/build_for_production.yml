@@ -3,11 +3,29 @@ name: Build and Release Flutter for Windows, macOS and Linux
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*.*.*'
 
 jobs:
+  # Get version from pubspec.yaml
+  get-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      # Step 2: Get version from pubspec.yaml
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
   build-windows:
+    needs: get-version
     runs-on: windows-latest
     
     steps:
@@ -53,6 +71,7 @@ jobs:
           retention-days: 7 # Number of days to keep the artifacts
 
   build-macos:
+    needs: get-version
     runs-on: macos-latest
     
     steps:
@@ -107,6 +126,7 @@ jobs:
           compression-level: 0 # No compression to preserve file structure
 
   build-linux:
+    needs: get-version
     runs-on: ubuntu-latest
     
     steps:
@@ -161,18 +181,22 @@ jobs:
   create-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    # Only run on tag pushes
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Use the version from get-version job
+    if: success()
     
     steps:
       # Step 1: Checkout the code
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for proper tagging
 
-      # Step 2: Get the version from the tag
-      - name: Get Version
+      # Step 2: Get version from get-version job output
+      - name: Set Version Variable
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "Using version: ${{ needs.get-version.outputs.version }}"
       
       # Step 3: Download all artifacts
       - name: Download Windows Build
@@ -231,3 +255,60 @@ jobs:
             - [Linux](TicTask-Linux-${{ steps.get_version.outputs.VERSION }}.zip)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job to merge main into development after successful release
+  merge-to-development:
+    needs: create-release
+    runs-on: ubuntu-latest
+    # Only run if all previous jobs succeeded
+    if: success()
+    permissions:
+      contents: write
+    
+    steps:
+      # Step 1: Checkout the repository code with all branches
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use PAT instead of GITHUB_TOKEN for cross-branch operations
+          token: ${{ secrets.GH_PAT }}
+      
+      # Step 2: Fetch all branches
+      - name: Fetch all branches
+        run: |
+          git fetch origin
+      
+      # Step 3: Check if development branch exists
+      - name: Check if development branch exists
+        id: check_dev_branch
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/development; then
+            echo "Development branch exists, proceeding with merge"
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Development branch does not exist, skipping merge"
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Step 4: Merge main into development
+      - name: Merge main into development
+        if: steps.check_dev_branch.outputs.branch_exists == 'true'
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Use version from get-version job
+          VERSION="${{ needs.get-version.outputs.version }}"
+          
+          # Checkout development branch
+          git checkout development
+          
+          # Pull latest changes from remote development branch
+          git pull origin development
+          
+          # Merge main into development
+          git merge --no-ff origin/main -m "Merge main into development after release v$VERSION"
+          
+          # Push changes to development
+          git push origin development
