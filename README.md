@@ -23,12 +23,10 @@
 ### 📊 Performance Analytics
 - Detailed time reports and statistics
 - Performance tracking across tasks and projects
-- Visual charts and progress indicators
 - Export functionality for data analysis
 
 ### 🎨 User Experience
 - Clean, modern interface design
-- Dark and light theme support
 - Cross-platform consistency
 - Responsive design for all screen sizes
 
@@ -170,9 +168,6 @@ class Task extends HiveObject {
 - [ ] Team collaboration features
 - [ ] Advanced reporting and analytics
 - [ ] Integration with calendar apps
-- [ ] Pomodoro timer technique
-- [ ] Voice commands and shortcuts
-- [ ] Widget support for quick access
 
 ## 🤝 Contributing
 
