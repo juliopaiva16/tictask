@@ -40,20 +40,28 @@ class TagSelector extends StatelessWidget {
             // Add New Tag button
             if (!readOnly && onAddNewTag != null)
               ActionChip(
-                avatar: const Icon(Icons.add, size: 16),
+                avatar: Icon(
+                  Icons.add,
+                  size: 16,
+                  color: Colors.grey[500],
+                ),
                 label: const Text('New Label'),
                 onPressed: onAddNewTag,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: Colors.grey[500]!.withAlpha(30),
+                labelStyle: TextStyle(
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.bold,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.grey[400]!),
+                  side: BorderSide(color: Colors.grey[500]!),
                 ),
               ),
             ...availableTags.map((tag) {
               final isSelected = selectedTags.contains(tag);
               final chipColor = isSelected
-                  ? tag.color.withAlpha(51)
-                  : Colors.grey[200];
+                  ? tag.color.withAlpha(100)
+                  : tag.color.withAlpha(30);
               final borderColor = tag.color;
               final textColor = tag.color;
               final borderRadius = BorderRadius.circular(8); // Less rounded
