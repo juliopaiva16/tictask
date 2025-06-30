@@ -1,0 +1,147 @@
+name: Build and Release Flutter for Windows, macOS and Linux
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for proper versioning
+      
+      # Step 2: Setup Java environment
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '21' # Flutter requires Java 11 or newer
+      
+      # Step 3: Setup Flutter environment
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.0'
+          channel: 'stable'
+          cache: true
+      
+      # Step 4: Enable Windows desktop support
+      - name: Enable Windows Desktop Support
+        run: flutter config --enable-windows-desktop
+      
+      # Step 5: Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+      
+      # Step 6: Build the Windows application in release mode
+      - name: Build Windows Application
+        run: flutter build windows --release
+      
+      # Step 7: Archive the build artifacts
+      - name: Archive Windows Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-windows
+          path: build\windows\x64\runner\Release
+          retention-days: 7 # Number of days to keep the artifacts
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for proper versioning
+      
+      # Step 2: Setup Java environment
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '21' # Using the same Java version as Windows build
+      
+      # Step 3: Setup Flutter environment
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.0'
+          channel: 'stable'
+          cache: true
+      
+      # Step 4: Enable macOS desktop support
+      - name: Enable macOS Desktop Support
+        run: flutter config --enable-macos-desktop
+      
+      # Step 5: Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+      
+      # Step 6: Build the macOS application in release mode
+      - name: Build macOS Application
+        run: flutter build macos --release
+      
+      # Step 7: Archive the build artifacts
+      - name: Archive macOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-macos
+          path: build/macos/Build/Products/Release/tictask.app
+          retention-days: 7 # Number of days to keep the artifacts
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for proper versioning
+      
+      # Step 2: Install Linux dependencies required for Flutter
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev libjsoncpp-dev libsqlite3-dev
+      
+      # Step 3: Setup Java environment
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '21' # Using the same Java version as other builds
+      
+      # Step 4: Setup Flutter environment
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.0'
+          channel: 'stable'
+          cache: true
+      
+      # Step 5: Enable Linux desktop support
+      - name: Enable Linux Desktop Support
+        run: flutter config --enable-linux-desktop
+      
+      # Step 6: Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+      
+      # Step 7: Build the Linux application in release mode
+      - name: Build Linux Application
+        run: flutter build linux --release
+      
+      # Step 8: Archive the build artifacts
+      - name: Archive Linux Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux
+          path: build/linux/x64/release/bundle
+          retention-days: 7 # Number of days to keep the artifacts
