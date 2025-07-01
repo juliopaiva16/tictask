@@ -73,6 +73,9 @@ msix_config:
   vs_generated_images_folder_path: build/windows/x64/runner/Release
   icons_background_color: transparent
   architecture: x64
+  capabilities: 'internetClient,microphone,webcam'
+  install_certificate: false
+  store: false
 
 # The following section is specific to Flutter packages.
 flutter:

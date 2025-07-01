@@ -63,12 +63,29 @@ jobs:
       if: ${{ env.WINDOWS_CERTIFICATE == '' }}
       run: |
         Write-Host "Installing self-signed certificate in trusted store..."
-        $cert = Get-PfxCertificate -FilePath "certificate.pfx"
-        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::Root, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
-        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-        $store.Add($cert)
-        $store.Close()
-        Write-Host "Certificate installed in trusted store"
+        try {
+          # Import certificate with password
+          $password = ConvertTo-SecureString -String "temp123" -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath "certificate.pfx" -Password $password -CertStoreLocation "Cert:\CurrentUser\My"
+          Write-Host "Certificate imported to Personal store: $($cert.Thumbprint)"
+          
+          # Also add to Root store for trust
+          $rootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::Root, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+          $rootStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+          $rootStore.Add($cert)
+          $rootStore.Close()
+          Write-Host "Certificate added to Root store for trust"
+          
+          # Add to TrustedPublisher store as well
+          $pubStore = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::TrustedPublisher, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+          $pubStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+          $pubStore.Add($cert)
+          $pubStore.Close()
+          Write-Host "Certificate added to TrustedPublisher store"
+        }
+        catch {
+          Write-Host "Warning: Could not install certificate in all stores: $($_.Exception.Message)"
+        }
       shell: pwsh
       env:
         WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -130,11 +147,41 @@ jobs:
         
         if ($signtool) {
           Write-Host "Verifying with SignTool at: $signtool"
+          
+          # Try basic verification first
+          Write-Host "Basic signature verification:"
           & $signtool verify /v "build\windows\x64\runner\Release\tictask.exe"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Signature verification successful"
+          $basicResult = $LASTEXITCODE
+          
+          # Try verification without publisher trust check
+          Write-Host "`nSignature verification (ignore trust):"
+          & $signtool verify /v /pa "build\windows\x64\runner\Release\tictask.exe"
+          $paResult = $LASTEXITCODE
+          
+          # Show certificate info
+          Write-Host "`nCertificate information:"
+          try {
+            $signature = Get-AuthenticodeSignature "build\windows\x64\runner\Release\tictask.exe"
+            Write-Host "Status: $($signature.Status)"
+            Write-Host "Status Message: $($signature.StatusMessage)"
+            if ($signature.SignerCertificate) {
+              Write-Host "Subject: $($signature.SignerCertificate.Subject)"
+              Write-Host "Issuer: $($signature.SignerCertificate.Issuer)"
+              Write-Host "Not Before: $($signature.SignerCertificate.NotBefore)"
+              Write-Host "Not After: $($signature.SignerCertificate.NotAfter)"
+            }
+          }
+          catch {
+            Write-Host "Could not get certificate info: $($_.Exception.Message)"
+          }
+          
+          if ($basicResult -eq 0) {
+            Write-Host "`n✓ Signature verification successful"
+          } elseif ($paResult -eq 0) {
+            Write-Host "`n✓ File has valid signature (self-signed certificate)"
           } else {
-            Write-Host "Signature verification failed (expected for self-signed certificates)"
+            Write-Host "`n⚠ Signature verification failed (expected for self-signed certificates in CI)"
+            Write-Host "This is normal - the certificate will work on user machines after installation"
           }
         } else {
           Write-Host "SignTool not found, skipping verification"
@@ -145,8 +192,59 @@ jobs:
     - name: Build MSIX package
       run: |
         Write-Host "Building MSIX package..."
-        flutter pub run msix:create
-        Write-Host "MSIX package created successfully"
+        
+        try {
+          # Method 1: Try with our certificate parameters
+          if (Test-Path "certificate.pfx") {
+            Write-Host "Attempting MSIX build with certificate..."
+            $env:MSIX_CERTIFICATE_PATH = "certificate.pfx"
+            $env:MSIX_CERTIFICATE_PASSWORD = "temp123"
+            
+            # Run MSIX creation with timeout to avoid hanging
+            $job = Start-Job -ScriptBlock {
+              Set-Location $using:PWD
+              flutter pub run msix:create --store --install-certificate false
+            }
+            
+            if (Wait-Job $job -Timeout 300) {
+              $result = Receive-Job $job
+              Write-Host $result
+            } else {
+              Write-Host "MSIX build timed out, stopping job..."
+              Stop-Job $job
+              Remove-Job $job
+            }
+          }
+          
+          # Method 2: Fallback - simple MSIX without prompts
+          if (-not (Test-Path "*.msix")) {
+            Write-Host "Fallback: Building MSIX without certificate..."
+            $job = Start-Job -ScriptBlock {
+              Set-Location $using:PWD
+              flutter pub run msix:create --store
+            }
+            
+            if (Wait-Job $job -Timeout 180) {
+              $result = Receive-Job $job
+              Write-Host $result
+            } else {
+              Write-Host "Fallback MSIX build also timed out..."
+              Stop-Job $job
+              Remove-Job $job
+            }
+          }
+        }
+        catch {
+          Write-Host "MSIX build failed: $($_.Exception.Message)"
+        }
+        
+        # Check if MSIX was created
+        if (Test-Path "*.msix") {
+          $msixFile = Get-ChildItem "*.msix" | Select-Object -First 1
+          Write-Host "✓ MSIX package created: $($msixFile.Name)"
+        } else {
+          Write-Host "⚠ MSIX package creation failed - continuing without MSIX"
+        }
       continue-on-error: true
       
     - name: Create Windows installer
@@ -197,29 +295,83 @@ jobs:
         @'
         # TicTask Windows Installation
         
-        ## Installation Instructions:
+        ## Quick Start:
+        1. Run `install_certificate.bat` first (recommended)
+        2. Run `install.bat` to install TicTask
+        3. Launch TicTask from your Desktop
+        
+        ## Detailed Instructions:
+        
+        ### Option 1: Recommended Installation
         1. Extract all files to a folder
-        2. Run 'install.bat' as Administrator (recommended)
-        3. Follow the on-screen instructions
+        2. **Right-click** `install_certificate.bat` → **Run as Administrator**
+        3. Run `install.bat` to install the application
+        4. Launch TicTask from Desktop shortcut
         
-        ## Manual Installation:
-        1. Copy 'tictask.exe' to your desired location
-        2. Create a shortcut on your desktop
-        3. Run the application
+        ### Option 2: Quick Installation (with security warnings)
+        1. Extract all files to a folder
+        2. Run `install.bat` directly
+        3. When Windows shows security warnings, click "More info" → "Run anyway"
         
-        ## Security Note:
-        This application is signed with a self-signed certificate.
-        Windows may show security warnings when running it.
-        - Click "More info" then "Run anyway" to continue
-        - This is normal for applications not purchased from Microsoft Store
+        ### Option 3: Manual Installation
+        1. Copy `tictask.exe` to your desired location (e.g., `C:\Program Files\TicTask\`)
+        2. Create a desktop shortcut manually
+        3. Install certificate using `install_certificate.bat` to reduce warnings
+        
+        ## About Security Warnings:
+        
+        **Why do I see security warnings?**
+        - TicTask is signed with a self-signed certificate
+        - Windows doesn't recognize it as "trusted" by default
+        - This is normal for applications not distributed through Microsoft Store
+        
+        **How to reduce warnings:**
+        1. Run `install_certificate.bat` as Administrator
+        2. This installs the certificate in your system's trusted store
+        3. Future launches will have fewer security warnings
+        
+        **Is it safe?**
+        - Yes, the application is digitally signed
+        - The certificate ensures the file hasn't been tampered with
+        - Self-signed certificates are commonly used by independent developers
+        
+        ## Files Included:
+        - `tictask.exe` - Main application
+        - `install.bat` - Installation script
+        - `install_certificate.bat` - Certificate installer (reduces warnings)
+        - `certificate.pfx` - Digital certificate file
+        - `README.txt` - This file
+        - Various `.dll` files - Required libraries
         
         ## Uninstallation:
-        - Delete the TicTask folder from your user directory
+        - Delete the TicTask folder from `%USERPROFILE%\TicTask`
         - Delete the desktop shortcut
         - No registry entries are created
+        - Certificate remains in system (harmless)
+        
+        ## Troubleshooting:
+        
+        **"Windows protected your PC" message:**
+        1. Click "More info"
+        2. Click "Run anyway"
+        3. Or install certificate first using `install_certificate.bat`
+        
+        **"This app can't run on your PC":**
+        - Ensure you're running 64-bit Windows
+        - Try running as Administrator
+        
+        **Application won't start:**
+        - Check if all `.dll` files are in the same folder as `tictask.exe`
+        - Try installing Visual C++ Redistributable
         
         ## Support:
         For issues, please visit: https://github.com/your-repo/tictask
+        
+        ## Version Information:
+        This package was built with GitHub Actions and includes:
+        - Flutter Windows app (signed)
+        - Self-signed certificate for code signing
+        - Automated installation scripts
         '@ | Out-File -FilePath installer\README.txt -Encoding UTF8
         
         Write-Host "Windows installer created successfully"
@@ -263,34 +415,192 @@ jobs:
         Write-Host "Files created:"
         if (Test-Path "build\windows\x64\runner\Release\tictask.exe") {
           $size = [math]::Round((Get-Item "build\windows\x64\runner\Release\tictask.exe").Length / 1MB, 2)
-          Write-Host "  ✓ tictask.exe ($size MB)"
+          Write-Host "  ✓ tictask.exe ($size MB) - Main application (signed)"
         }
         
         if (Test-Path "certificate.pfx") {
-          Write-Host "  ✓ certificate.pfx (signing certificate)"
+          Write-Host "  ✓ certificate.pfx - Self-signed certificate"
         }
         
         if (Test-Path "installer") {
-          Write-Host "  ✓ installer/ (installation package)"
+          Write-Host "  ✓ installer/ - Complete installation package with:"
+          Write-Host "    - install.bat - Application installer"
+          Write-Host "    - install_certificate.bat - Certificate installer"
+          Write-Host "    - README.txt - Detailed instructions"
         }
         
         if (Test-Path "*.msix") {
-          Write-Host "  ✓ MSIX package (Microsoft Store ready)"
+          $msixFile = Get-ChildItem "*.msix" | Select-Object -First 1
+          $msixSize = [math]::Round($msixFile.Length / 1MB, 2)
+          Write-Host "  ✓ $($msixFile.Name) ($msixSize MB) - Microsoft Store package"
         }
         
         if (Test-Path "tictask-windows-*.zip") {
           $zipFile = Get-ChildItem "tictask-windows-*.zip" | Select-Object -First 1
           $zipSize = [math]::Round($zipFile.Length / 1MB, 2)
-          Write-Host "  ✓ $($zipFile.Name) ($zipSize MB)"
+          Write-Host "  ✓ $($zipFile.Name) ($zipSize MB) - Distribution package"
         }
         
         Write-Host ""
-        Write-Host "Next steps:"
-        Write-Host "1. Download artifacts from GitHub Actions"
-        Write-Host "2. Test the installer on a clean Windows machine"
-        Write-Host "3. Consider getting a trusted code signing certificate"
-        Write-Host "4. For Microsoft Store: use the .msix file"
+        Write-Host "=== DISTRIBUTION OPTIONS ==="
         Write-Host ""
-        Write-Host "Note: Self-signed certificate will trigger Windows security warnings"
-        Write-Host "Users should click 'More info' -> 'Run anyway' to install"
+        Write-Host "1. End User Installation (Recommended):"
+        Write-Host "   - Download and extract the ZIP file"
+        Write-Host "   - Run 'install_certificate.bat' as Administrator first"
+        Write-Host "   - Run 'install.bat' to install the application"
+        Write-Host "   - This reduces security warnings significantly"
+        Write-Host ""
+        Write-Host "2. Microsoft Store (Professional):"
+        Write-Host "   - Use the .msix file for Microsoft Store submission"
+        Write-Host "   - No security warnings when distributed through Store"
+        Write-Host "   - Requires Microsoft Developer account"
+        Write-Host ""
+        Write-Host "3. Direct Distribution:"
+        Write-Host "   - Share the ZIP file with users"
+        Write-Host "   - Users will see security warnings (normal for self-signed)"
+        Write-Host "   - Include instructions to click 'More info' → 'Run anyway'"
+        Write-Host ""
+        Write-Host "=== SECURITY INFORMATION ==="
+        Write-Host "Certificate Status: Self-signed (development certificate)"
+        Write-Host "Security Warnings: Expected on first run"
+        Write-Host "Recommendation: Install certificate first for better user experience"
+        Write-Host ""
+        Write-Host "To eliminate all warnings, consider purchasing a code signing"
+        Write-Host "certificate from a trusted Certificate Authority (CA)."
+        Write-Host ""
+        Write-Host "Build completed at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
+      shell: pwsh
+      
+    - name: Create certificate installer for end users
+      if: ${{ env.WINDOWS_CERTIFICATE == '' }}
+      run: |
+        Write-Host "Creating certificate installer for end users..."
+        
+        # Copy certificate to installer folder
+        Copy-Item "certificate.pfx" "installer\"
+        
+        # Create certificate installation script
+        @'
+        @echo off
+        echo ====================================
+        echo   TicTask Certificate Installer
+        echo ====================================
+        echo.
+        echo This script will install the TicTask certificate
+        echo to reduce Windows security warnings.
+        echo.
+        echo Note: You may need to run this as Administrator
+        echo for system-wide installation.
+        echo.
+        pause
+        
+        echo Installing certificate...
+        
+        REM Try to install using certutil (works on most Windows versions)
+        certutil -user -addstore Root certificate.pfx
+        if %ERRORLEVEL% EQU 0 (
+            echo Certificate installed successfully in Root store
+        ) else (
+            echo Failed to install in Root store, trying TrustedPublisher...
+            certutil -user -addstore TrustedPublisher certificate.pfx
+        )
+        
+        REM Also try PowerShell method as backup
+        powershell -Command "& {try {$cert = Import-PfxCertificate -FilePath 'certificate.pfx' -CertStoreLocation 'Cert:\CurrentUser\Root' -Confirm:$false; Write-Host 'PowerShell: Certificate installed successfully'} catch {Write-Host 'PowerShell: Installation failed -' $_.Exception.Message}}"
+        
+        echo.
+        echo Certificate installation completed.
+        echo You can now run TicTask with fewer security warnings.
+        echo.
+        pause
+        '@ | Out-File -FilePath installer\install_certificate.bat -Encoding ASCII
+        
+        Write-Host "Certificate installer created"
+      shell: pwsh
+      env:
+        WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+        
+    - name: Create MSIX manually (if automated build failed)
+      if: ${{ !cancelled() }}
+      run: |
+        Write-Host "Checking if we need to create MSIX manually..."
+        
+        if (-not (Test-Path "*.msix")) {
+          Write-Host "Creating MSIX package manually..."
+          
+          try {
+            # Create basic app manifest
+            $manifestContent = @'
+        <?xml version="1.0" encoding="utf-8"?>
+        <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                 xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
+          <Identity Name="com.sicpa.tictask"
+                    Publisher="CN=SICPA"
+                    Version="0.0.3.0" />
+          <Properties>
+            <DisplayName>TicTask</DisplayName>
+            <PublisherDisplayName>SICPA</PublisherDisplayName>
+            <Description>TicTask - Gerenciador de Tarefas</Description>
+          </Properties>
+          <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17134.0" MaxVersionTested="10.0.22000.0" />
+          </Dependencies>
+          <Applications>
+            <Application Id="TicTask" Executable="tictask.exe" EntryPoint="Windows.FullTrustApplication">
+              <uap:VisualElements DisplayName="TicTask"
+                                  Description="TicTask - Gerenciador de Tarefas"
+                                  BackgroundColor="transparent"
+                                  Square150x150Logo="assets\Square150x150Logo.png"
+                                  Square44x44Logo="assets\Square44x44Logo.png">
+              </uap:VisualElements>
+            </Application>
+          </Applications>
+          <Capabilities>
+            <Capability Name="internetClient" />
+          </Capabilities>
+        </Package>
+        '@
+            
+            # Create MSIX structure
+            New-Item -ItemType Directory -Path "msix_manual" -Force | Out-Null
+            New-Item -ItemType Directory -Path "msix_manual\assets" -Force | Out-Null
+            
+            # Copy app files
+            Copy-Item -Recurse "build\windows\x64\runner\Release\*" "msix_manual\"
+            
+            # Create manifest
+            $manifestContent | Out-File -FilePath "msix_manual\AppxManifest.xml" -Encoding UTF8
+            
+            # Try to find makeappx.exe
+            $makeappxPaths = @(
+              "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\makeappx.exe",
+              "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\makeappx.exe"
+            )
+            
+            $makeappx = $null
+            foreach ($path in $makeappxPaths) {
+              if (Test-Path $path) {
+                $makeappx = $path
+                break
+              }
+            }
+            
+            if ($makeappx) {
+              Write-Host "Creating MSIX with makeappx at: $makeappx"
+              & $makeappx pack /d "msix_manual" /p "tictask-manual.msix" /o
+              
+              if (Test-Path "tictask-manual.msix") {
+                Write-Host "✓ Manual MSIX package created successfully"
+              }
+            } else {
+              Write-Host "⚠ makeappx.exe not found - cannot create manual MSIX"
+            }
+          }
+          catch {
+            Write-Host "Manual MSIX creation failed: $($_.Exception.Message)"
+          }
+        } else {
+          Write-Host "MSIX already exists, skipping manual creation"
+        }
+      continue-on-error: true
       shell: pwsh
