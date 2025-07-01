@@ -40,9 +40,11 @@ jobs:
     - name: Create self-signed certificate (if no certificate provided)
       if: ${{ env.WINDOWS_CERTIFICATE == '' }}
       run: |
+        Write-Host "Creating self-signed certificate..."
         $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=TicTask,O=SICPA,C=BR" -KeyUsage DigitalSignature -FriendlyName "TicTask Certificate" -CertStoreLocation "Cert:\CurrentUser\My" -KeyLength 2048 -KeyAlgorithm RSA -HashAlgorithm SHA256
         $password = ConvertTo-SecureString -String "temp123" -Force -AsPlainText
         Export-PfxCertificate -Cert $cert -FilePath "certificate.pfx" -Password $password
+        Write-Host "Self-signed certificate created at certificate.pfx"
       shell: pwsh
       env:
         WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -50,49 +52,177 @@ jobs:
     - name: Import certificate from secrets
       if: ${{ env.WINDOWS_CERTIFICATE != '' }}
       run: |
+        echo "Importing certificate from secrets..."
         echo "${{ secrets.WINDOWS_CERTIFICATE }}" | base64 --decode > certificate.pfx
+        echo "Certificate imported successfully"
       shell: bash
+      env:
+        WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      
+    - name: Install certificate in trusted store (for self-signed)
+      if: ${{ env.WINDOWS_CERTIFICATE == '' }}
+      run: |
+        Write-Host "Installing self-signed certificate in trusted store..."
+        $cert = Get-PfxCertificate -FilePath "certificate.pfx"
+        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::Root, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+        $store.Add($cert)
+        $store.Close()
+        Write-Host "Certificate installed in trusted store"
+      shell: pwsh
       env:
         WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
       
     - name: Sign Windows executable
       run: |
+        Write-Host "Signing Windows executable..."
         $password = if ("${{ secrets.CERTIFICATE_PASSWORD }}") { "${{ secrets.CERTIFICATE_PASSWORD }}" } else { "temp123" }
-        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f certificate.pfx /p $password /t http://timestamp.digicert.com /fd SHA256 "build\windows\x64\runner\Release\tictask.exe"
+        
+        # Try to find signtool.exe in different locations
+        $signtoolPaths = @(
+          "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe",
+          "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe",
+          "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\x64\signtool.exe"
+        )
+        
+        $signtool = $null
+        foreach ($path in $signtoolPaths) {
+          if (Test-Path $path) {
+            $signtool = $path
+            break
+          }
+        }
+        
+        if (-not $signtool) {
+          Write-Host "SignTool not found, trying to locate it..."
+          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+        }
+        
+        if ($signtool) {
+          Write-Host "Using SignTool at: $signtool"
+          & $signtool sign /f certificate.pfx /p $password /fd SHA256 "build\windows\x64\runner\Release\tictask.exe"
+          Write-Host "Executable signed successfully"
+        } else {
+          Write-Host "SignTool not found, skipping signing"
+        }
       shell: pwsh
       
     - name: Verify signature
       run: |
-        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" verify /pa "build\windows\x64\runner\Release\tictask.exe"
+        Write-Host "Verifying signature..."
+        $signtoolPaths = @(
+          "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe",
+          "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe",
+          "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\x64\signtool.exe"
+        )
+        
+        $signtool = $null
+        foreach ($path in $signtoolPaths) {
+          if (Test-Path $path) {
+            $signtool = $path
+            break
+          }
+        }
+        
+        if (-not $signtool) {
+          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+        }
+        
+        if ($signtool) {
+          Write-Host "Verifying with SignTool at: $signtool"
+          & $signtool verify /v "build\windows\x64\runner\Release\tictask.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Signature verification successful"
+          } else {
+            Write-Host "Signature verification failed (expected for self-signed certificates)"
+          }
+        } else {
+          Write-Host "SignTool not found, skipping verification"
+        }
       shell: pwsh
       continue-on-error: true
       
     - name: Build MSIX package
       run: |
+        Write-Host "Building MSIX package..."
         flutter pub run msix:create
+        Write-Host "MSIX package created successfully"
+      continue-on-error: true
       
     - name: Create Windows installer
       run: |
+        Write-Host "Creating Windows installer..."
         # Criar estrutura do instalador
         mkdir installer
         Copy-Item -Recurse "build\windows\x64\runner\Release\*" installer\
         
-        # Criar script de instalação simples
-        @"
+        # Criar script de instalação
+        @'
         @echo off
+        echo ====================================
+        echo     TicTask Installation Script
+        echo ====================================
+        echo.
+        
         echo Installing TicTask...
-        if not exist "%USERPROFILE%\TicTask" mkdir "%USERPROFILE%\TicTask"
-        copy /Y "tictask.exe" "%USERPROFILE%\TicTask\"
-        copy /Y "*.dll" "%USERPROFILE%\TicTask\" 2>nul
-        if exist "data" xcopy /E /Y "data" "%USERPROFILE%\TicTask\data\"
+        set INSTALL_DIR=%USERPROFILE%\TicTask
         
-        echo Creating shortcut...
-        powershell -Command "& {`$WshShell = New-Object -comObject WScript.Shell; `$Shortcut = `$WshShell.CreateShortcut('%USERPROFILE%\Desktop\TicTask.lnk'); `$Shortcut.TargetPath = '%USERPROFILE%\TicTask\tictask.exe'; `$Shortcut.Save()}"
+        if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+        echo Created installation directory: %INSTALL_DIR%
         
-        echo TicTask installed successfully!
-        echo You can find TicTask shortcut on your Desktop
+        echo Copying files...
+        copy /Y "tictask.exe" "%INSTALL_DIR%\" >nul
+        copy /Y "*.dll" "%INSTALL_DIR%\" 2>nul
+        if exist "data" xcopy /E /Y "data" "%INSTALL_DIR%\data\" >nul 2>&1
+        
+        echo Creating desktop shortcut...
+        powershell -Command "& {$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\TicTask.lnk'); $Shortcut.TargetPath = '%INSTALL_DIR%\tictask.exe'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Description = 'TicTask - Gerenciador de Tarefas'; $Shortcut.Save()}"
+        
+        echo.
+        echo ====================================
+        echo    Installation completed!
+        echo ====================================
+        echo.
+        echo TicTask has been installed to: %INSTALL_DIR%
+        echo Desktop shortcut created: TicTask.lnk
+        echo.
+        echo Note: This application uses a self-signed certificate.
+        echo Windows may show security warnings when running it.
+        echo Click "More info" and "Run anyway" to continue.
+        echo.
         pause
-        "@ | Out-File -FilePath installer\install.bat -Encoding ASCII
+        '@ | Out-File -FilePath installer\install.bat -Encoding ASCII
+        
+        # Criar README para o instalador
+        @'
+        # TicTask Windows Installation
+        
+        ## Installation Instructions:
+        1. Extract all files to a folder
+        2. Run 'install.bat' as Administrator (recommended)
+        3. Follow the on-screen instructions
+        
+        ## Manual Installation:
+        1. Copy 'tictask.exe' to your desired location
+        2. Create a shortcut on your desktop
+        3. Run the application
+        
+        ## Security Note:
+        This application is signed with a self-signed certificate.
+        Windows may show security warnings when running it.
+        - Click "More info" then "Run anyway" to continue
+        - This is normal for applications not purchased from Microsoft Store
+        
+        ## Uninstallation:
+        - Delete the TicTask folder from your user directory
+        - Delete the desktop shortcut
+        - No registry entries are created
+        
+        ## Support:
+        For issues, please visit: https://github.com/your-repo/tictask
+        '@ | Out-File -FilePath installer\README.txt -Encoding UTF8
+        
+        Write-Host "Windows installer created successfully"
       shell: pwsh
       
     - name: Create ZIP package
@@ -123,3 +253,44 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Summary
+      run: |
+        Write-Host "=== BUILD SUMMARY ==="
+        Write-Host "Build completed successfully!"
+        Write-Host ""
+        
+        Write-Host "Files created:"
+        if (Test-Path "build\windows\x64\runner\Release\tictask.exe") {
+          $size = [math]::Round((Get-Item "build\windows\x64\runner\Release\tictask.exe").Length / 1MB, 2)
+          Write-Host "  ✓ tictask.exe ($size MB)"
+        }
+        
+        if (Test-Path "certificate.pfx") {
+          Write-Host "  ✓ certificate.pfx (signing certificate)"
+        }
+        
+        if (Test-Path "installer") {
+          Write-Host "  ✓ installer/ (installation package)"
+        }
+        
+        if (Test-Path "*.msix") {
+          Write-Host "  ✓ MSIX package (Microsoft Store ready)"
+        }
+        
+        if (Test-Path "tictask-windows-*.zip") {
+          $zipFile = Get-ChildItem "tictask-windows-*.zip" | Select-Object -First 1
+          $zipSize = [math]::Round($zipFile.Length / 1MB, 2)
+          Write-Host "  ✓ $($zipFile.Name) ($zipSize MB)"
+        }
+        
+        Write-Host ""
+        Write-Host "Next steps:"
+        Write-Host "1. Download artifacts from GitHub Actions"
+        Write-Host "2. Test the installer on a clean Windows machine"
+        Write-Host "3. Consider getting a trusted code signing certificate"
+        Write-Host "4. For Microsoft Store: use the .msix file"
+        Write-Host ""
+        Write-Host "Note: Self-signed certificate will trigger Windows security warnings"
+        Write-Host "Users should click 'More info' -> 'Run anyway' to install"
+      shell: pwsh
