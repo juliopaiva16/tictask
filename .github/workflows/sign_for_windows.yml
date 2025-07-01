@@ -1,0 +1,113 @@
+name: Build and Sign Windows App
+
+on:
+  push:
+    branches: [ development ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.0'
+        channel: 'stable'
+        
+    - name: Cache Flutter dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pub-cache
+          ${{ runner.workspace }}/.pub-cache
+        key: ${{ runner.os }}-pub-cache-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-pub-cache-
+          
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Generate Hive adapters
+      run: flutter packages pub run build_runner build --delete-conflicting-outputs || true
+      
+    - name: Build Windows app
+      run: flutter build windows --release
+      
+    - name: Create self-signed certificate (if no certificate provided)
+      if: ${{ !secrets.WINDOWS_CERTIFICATE }}
+      run: |
+        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=TicTask,O=SICPA,C=BR" -KeyUsage DigitalSignature -FriendlyName "TicTask Certificate" -CertStoreLocation "Cert:\CurrentUser\My" -KeyLength 2048 -KeyAlgorithm RSA -HashAlgorithm SHA256
+        $password = ConvertTo-SecureString -String "temp123" -Force -AsPlainText
+        Export-PfxCertificate -Cert $cert -FilePath "certificate.pfx" -Password $password
+      shell: pwsh
+      
+    - name: Import certificate from secrets
+      if: ${{ secrets.WINDOWS_CERTIFICATE }}
+      run: |
+        echo "${{ secrets.WINDOWS_CERTIFICATE }}" | base64 --decode > certificate.pfx
+      shell: bash
+      
+    - name: Sign Windows executable
+      run: |
+        $password = if ("${{ secrets.CERTIFICATE_PASSWORD }}") { "${{ secrets.CERTIFICATE_PASSWORD }}" } else { "temp123" }
+        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f certificate.pfx /p $password /t http://timestamp.digicert.com /fd SHA256 "build\windows\x64\runner\Release\tictask.exe"
+      shell: pwsh
+      
+    - name: Verify signature
+      run: |
+        & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" verify /pa "build\windows\x64\runner\Release\tictask.exe"
+      shell: pwsh
+      continue-on-error: true
+      
+    - name: Create Windows installer
+      run: |
+        # Criar estrutura do instalador
+        mkdir installer
+        Copy-Item -Recurse "build\windows\x64\runner\Release\*" installer\
+        
+        # Criar script de instalação simples
+        @"
+        @echo off
+        echo Installing TicTask...
+        if not exist "%USERPROFILE%\TicTask" mkdir "%USERPROFILE%\TicTask"
+        copy /Y "tictask.exe" "%USERPROFILE%\TicTask\"
+        copy /Y "*.dll" "%USERPROFILE%\TicTask\" 2>nul
+        copy /Y data\* "%USERPROFILE%\TicTask\data\" 2>nul
+        
+        echo Creating shortcut...
+        powershell -Command "& {`$WshShell = New-Object -comObject WScript.Shell; `$Shortcut = `$WshShell.CreateShortcut('%USERPROFILE%\Desktop\TicTask.lnk'); `$Shortcut.TargetPath = '%USERPROFILE%\TicTask\tictask.exe'; `$Shortcut.Save()}"
+        
+        echo TicTask installed successfully!
+        pause
+        "@ | Out-File -FilePath installer\install.bat -Encoding ASCII
+      shell: pwsh
+      
+    - name: Create ZIP package
+      run: |
+        Compress-Archive -Path "installer\*" -DestinationPath "tictask-windows-v${{ github.ref_name || 'latest' }}.zip"
+      shell: pwsh
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: tictask-windows-signed
+        path: |
+          tictask-windows-*.zip
+          build/windows/x64/runner/Release/tictask.exe
+        retention-days: 7
+        
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          tictask-windows-*.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
